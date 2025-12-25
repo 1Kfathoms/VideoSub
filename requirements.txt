@@ -1,0 +1,10 @@
+# ファイル名: requirements.txt
+# 仕様: アプリケーション依存ライブラリの定義（PyTorch本体は setup.bat で別途インストールするため除外）
+
+# 互換性確保のためNumPyを2.0未満に固定
+numpy<2.0
+
+# アプリケーション依存ライブラリ
+openai-whisper
+stable-ts
+argostranslate

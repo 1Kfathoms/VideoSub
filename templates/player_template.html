@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Language Player (Responsive)</title>
+    <style>
+        /* 基本設定（PC向けレイアウトがベース） */
+        body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #fff; }
+        
+        #video-container { 
+            flex: 0 0 75%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #000; 
+            min-width: 200px; 
+        }
+        video { max-width: 100%; max-height: 100%; }
+        
+        /* リサイズ用ハンドル */
+        #resizer {
+            width: 8px;
+            background: #333;
+            cursor: col-resize;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        #resizer:hover, #resizer.active {
+            background: #00FFFF;
+        }
+
+        #transcript-container { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            border-left: none; 
+            min-width: 200px; 
+        }
+        
+        /* ドラッグ中のスタイル */
+        body.resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .segment { margin-bottom: 24px; padding: 10px; border-radius: 8px; transition: background 0.2s; }
+        .segment:hover { background: #2a2a2a; }
+        
+        .word { cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.1s; margin-right: 2px; display: inline-block;}
+        .word:hover { background: #444; }
+        
+        .word.active { background: #00FFFF; color: #000; font-weight: bold; transform: scale(1.1); }
+        
+        .translation { display: block; margin-top: 8px; color: #aaa; font-size: 0.9em; border-left: 3px solid #555; padding-left: 8px; }
+
+        /* ▼▼▼ 追加: スマホ対応用レスポンシブCSS ▼▼▼ */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column; /* 要素を縦並びにする */
+            }
+
+            #video-container {
+                flex: none; /* フレックス比率を解除 */
+                width: 100%;
+                height: 40vh; /* 画面の上部40%を動画エリアに */
+                border-bottom: 2px solid #333;
+            }
+
+            /* スマホではリサイズバーを非表示（指での操作が難しいため固定レイアウト推奨） */
+            #resizer {
+                display: none;
+            }
+
+            #transcript-container {
+                width: 100%;
+                height: 60vh; /* 残りの60%を字幕エリアに */
+                border-left: none;
+                padding: 15px; /* 余白を少し調整 */
+            }
+            
+            /* 文字サイズを少し大きくしてタップしやすくする */
+            .word {
+                padding: 4px 6px;
+                font-size: 1.1em; 
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="video-container">
+        <video id="player" controls playsinline webkit-playsinline></video> </div>
+
+    <div id="resizer"></div>
+
+    <div id="transcript-container">
+        <div id="content"></div>
+    </div>
+
+    <script src="data.js"></script>
+    
+    <script>
+        const player = document.getElementById('player');
+        const contentDiv = document.getElementById('content');
+        
+        // --- リサイズ機能 ---
+        const resizer = document.getElementById('resizer');
+        const leftPanel = document.getElementById('video-container');
+
+        resizer.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            document.body.classList.add('resizing');
+            resizer.classList.add('active');
+
+            const startX = e.clientX;
+            const startWidth = leftPanel.getBoundingClientRect().width;
+
+            const doDrag = function(e) {
+                const newWidth = startWidth + (e.clientX - startX);
+                leftPanel.style.flex = `0 0 ${newWidth}px`;
+            };
+
+            const stopDrag = function() {
+                document.body.classList.remove('resizing');
+                resizer.classList.remove('active');
+                document.removeEventListener('mousemove', doDrag);
+                document.removeEventListener('mouseup', stopDrag);
+            };
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+        });
+        // --- リサイズ機能終了 ---
+
+
+        // 1. 初期化処理
+        function init() {
+            if (typeof MEDIA_DATA === 'undefined') {
+                console.error('MEDIA_DATA not found. ensure data.js is loaded.');
+                return;
+            }
+
+            player.src = MEDIA_DATA.videoFile;
+
+            MEDIA_DATA.segments.forEach((segment, segIndex) => {
+                const segDiv = document.createElement('div');
+                segDiv.className = 'segment';
+                
+                segment.words.forEach((w, wordIndex) => {
+                    const span = document.createElement('span');
+                    span.className = 'word';
+                    span.innerText = w.word;
+                    span.dataset.start = w.start;
+                    span.dataset.end = w.end;
+                    span.dataset.segIndex = segIndex;
+                    span.dataset.wordIndex = wordIndex;
+                    
+                    span.onclick = () => {
+                        player.currentTime = w.start;
+                        player.play();
+                    };
+                    
+                    segDiv.appendChild(span);
+                });
+
+                const transDiv = document.createElement('span');
+                transDiv.className = 'translation';
+                transDiv.innerText = segment.translation;
+                segDiv.appendChild(transDiv);
+
+                contentDiv.appendChild(segDiv);
+            });
+        }
+
+        // 2. 同期ロジック
+        let allWords = []; 
+
+        function cacheWords() {
+            allWords = Array.from(document.querySelectorAll('.word')).map(el => ({
+                el: el,
+                start: parseFloat(el.dataset.start),
+                end: parseFloat(el.dataset.end)
+            }));
+        }
+
+        function updateHighlight() {
+            const currentTime = player.currentTime;
+
+            for (let i = 0; i < allWords.length; i++) {
+                const w = allWords[i];
+                if (currentTime >= w.start && currentTime < w.end) {
+                    if (!w.el.classList.contains('active')) {
+                        w.el.classList.add('active');
+                        w.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    if (w.el.classList.contains('active')) {
+                        w.el.classList.remove('active');
+                    }
+                }
+            }
+            requestAnimationFrame(updateHighlight);
+        }
+
+        // 実行開始
+        // DOMContentLoadedを待つことで安全性を高めています
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            cacheWords();
+            requestAnimationFrame(updateHighlight);
+        });
+
+    </script>
+</body>
+</html>
