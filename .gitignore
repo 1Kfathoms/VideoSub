@@ -10,9 +10,6 @@ output/
 .tmp.driveupload/
 .tmp.drivedownload/
 
-# 辞書データの巨大ファイルを除外
-dictionary/ja-extract.jsonl
-
 # Python関連の一般的な除外設定
 __pycache__/
 *.pyc
