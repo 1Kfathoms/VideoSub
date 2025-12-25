@@ -33,10 +33,11 @@
         #transcript-container { 
             flex: 1; 
             overflow-y: auto; 
-            padding: 20px; 
+            padding: 8px; 
             box-sizing: border-box; 
             border-left: none; 
             min-width: 200px; 
+            font-size: 0.95em; 
         }
         
         /* ドラッグ中のスタイル */
@@ -45,15 +46,15 @@
             user-select: none;
         }
 
-        .segment { margin-bottom: 24px; padding: 10px; border-radius: 8px; transition: background 0.2s; }
+        .segment { margin-bottom: 8px; padding: 4px; border-radius: 8px; transition: background 0.2s; }
         .segment:hover { background: #2a2a2a; }
         
-        .word { cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.1s; margin-right: 2px; display: inline-block;}
+        .word { cursor: pointer; padding: 0px 2px; border-radius: 4px; transition: all 0.1s; margin-right: 1px; display: inline-block; line-height: 1.15; }
         .word:hover { background: #444; }
         
-        .word.active { background: #00FFFF; color: #000; font-weight: bold; transform: scale(1.1); }
+        .word.active { background: #00FFFF; color: #000; font-weight: inherit; }
         
-        .translation { display: block; margin-top: 8px; color: #aaa; font-size: 0.9em; border-left: 3px solid #555; padding-left: 8px; }
+        .translation { display: block; margin-top: 3px; color: #aaa; font-size: 0.8em; line-height: 1.25; border-left: 2px solid #555; padding-left: 5px; }
 
         /* ▼▼▼ 追加: スマホ対応用レスポンシブCSS ▼▼▼ */
         @media (max-width: 768px) {
@@ -77,14 +78,14 @@
                 width: 100%;
                 height: 60vh; /* 残りの60%を字幕エリアに */
                 border-left: none;
-                padding: 15px; /* 余白を少し調整 */
+                padding: 8px; /* 余白をさらに圧縮 */
             }
             
             /* 文字サイズを少し大きくしてタップしやすくする */
             .word {
-                padding: 4px 6px;
-                font-size: 1.1em; 
-                margin-bottom: 4px;
+                padding: 3px 5px;
+                font-size: 1.05em; 
+                margin-bottom: 3px;
             }
         }
     </style>
@@ -105,6 +106,7 @@
     <script>
         const player = document.getElementById('player');
         const contentDiv = document.getElementById('content');
+        let resumeAfterHover = false; // remembers play state when hovering a word
         
         // --- リサイズ機能 ---
         const resizer = document.getElementById('resizer');
@@ -162,6 +164,18 @@
                         player.currentTime = w.start;
                         player.play();
                     };
+
+                    span.addEventListener('mouseenter', () => {
+                        resumeAfterHover = !player.paused && !player.ended;
+                        player.pause();
+                    });
+
+                    span.addEventListener('mouseleave', () => {
+                        if (resumeAfterHover) {
+                            player.play();
+                        }
+                        resumeAfterHover = false;
+                    });
                     
                     segDiv.appendChild(span);
                 });
