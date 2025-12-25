@@ -56,36 +56,207 @@
         
         .translation { display: block; margin-top: 3px; color: #aaa; font-size: 0.8em; line-height: 1.25; border-left: 2px solid #555; padding-left: 5px; }
 
-        /* ▼▼▼ 追加: スマホ対応用レスポンシブCSS ▼▼▼ */
+        /* 辞書ツールチップ */
+        .dict-tooltip {
+            position: fixed;
+            max-width: 340px;
+            background: #111;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 10px 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+            font-size: 0.9em;
+            line-height: 1.4;
+            z-index: 1000;
+            pointer-events: auto;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* ツールチップボタン群 */
+        .dict-tooltip-buttons {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #444;
+            display: flex;
+            gap: 6px;
+        }
+
+        .dict-tooltip button {
+            flex: 1;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+
+        .dict-tooltip button:hover {
+            background: #333;
+            border-color: #00FFFF;
+            color: #00FFFF;
+        }
+
+        .dict-tooltip button.marked {
+            background: #00FFFF;
+            color: #000;
+            border-color: #00FFFF;
+        }
+
+        .speaker-btn {
+            font-size: 1.1em;
+        }
+
+        /* 検索ボックス */
+        #search-box {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 250px;
+            padding: 8px 12px;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 0.9em;
+            z-index: 999;
+        }
+
+        #search-box::placeholder {
+            color: #888;
+        }
+
+        #search-box:focus {
+            outline: none;
+            border-color: #00FFFF;
+            box-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
+        }
+
+        .word.search-highlight {
+            background: #FFB90C;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* 学習リストパネル */
+        #study-list-panel {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 280px;
+            max-height: 300px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 12px;
+            z-index: 999;
+            display: none;
+            overflow-y: auto;
+        }
+
+        #study-list-panel.show {
+            display: block;
+        }
+
+        .study-list-header {
+            color: #00FFFF;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .study-list-item {
+            background: #222;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            border-left: 3px solid #00FFFF;
+            font-size: 0.85em;
+            word-break: break-all;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .study-list-item:hover {
+            background: #2a2a2a;
+            box-shadow: 0 2px 6px rgba(0, 255, 255, 0.3);
+            transform: translateX(2px);
+        }
+
+        .study-list-item-word {
+            font-weight: bold;
+            color: #00FFFF;
+        }
+
+        .study-list-item-time {
+            float: right;
+            color: #aaa;
+            font-size: 0.78em;
+        }
+
+        #study-list-clear {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s;
+        }
+
+        #study-list-clear:hover {
+            background: #d00;
+            color: #fff;
+        }
+
+        /* スマホ対応用レスポンシブCSS */
         @media (max-width: 768px) {
             body {
-                flex-direction: column; /* 要素を縦並びにする */
+                flex-direction: column;
             }
 
             #video-container {
-                flex: none; /* フレックス比率を解除 */
+                flex: none;
                 width: 100%;
-                height: 40vh; /* 画面の上部40%を動画エリアに */
+                height: 40vh;
                 border-bottom: 2px solid #333;
             }
 
-            /* スマホではリサイズバーを非表示（指での操作が難しいため固定レイアウト推奨） */
             #resizer {
                 display: none;
             }
 
             #transcript-container {
                 width: 100%;
-                height: 60vh; /* 残りの60%を字幕エリアに */
+                height: 60vh;
                 border-left: none;
-                padding: 8px; /* 余白をさらに圧縮 */
+                padding: 8px;
             }
             
-            /* 文字サイズを少し大きくしてタップしやすくする */
             .word {
                 padding: 3px 5px;
                 font-size: 1.05em; 
                 margin-bottom: 3px;
+            }
+
+            #search-box {
+                width: 200px;
+                top: 5px;
+                right: 5px;
+            }
+
+            #study-list-panel {
+                width: 240px;
+                max-height: 200px;
+                bottom: 50px;
+                right: 5px;
             }
         }
     </style>
@@ -101,12 +272,417 @@
         <div id="content"></div>
     </div>
 
+    <input type="text" id="search-box" placeholder="単語を検索...">
+    <button id="study-list-toggle" style="position:fixed;bottom:10px;left:10px;z-index:999;padding:8px 12px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;cursor:pointer;">学習リスト</button>
+    <div id="study-list-panel">
+        <div class="study-list-header">
+            学習単語
+            <button id="study-list-clear">クリア</button>
+        </div>
+        <div id="study-list-content"></div>
+    </div>
+
     <script src="data.js"></script>
+    <div id="dict-tooltip" class="dict-tooltip" style="display:none;"></div>
     
     <script>
         const player = document.getElementById('player');
         const contentDiv = document.getElementById('content');
-        let resumeAfterHover = false; // remembers play state when hovering a word
+        let resumeAfterHover = false;
+        const dictTooltip = document.getElementById('dict-tooltip');
+        const dictCache = new Map();
+        let ejDict = null;
+        let jaDict = null;
+        const canLoadLocalDict = (location.protocol === 'http:' || location.protocol === 'https:');
+        let hoverDebounceTimer = null;
+        // ツールチップを消すためのタイマー変数
+        let tooltipHideTimer = null;
+        let pendingWord = null;
+        
+        // 学習リスト管理
+        const studyListStorage = 'videoSubStudyList';
+        let studyList = JSON.parse(localStorage.getItem(studyListStorage)) || {};
+        
+        // 検索機能
+        const searchBox = document.getElementById('search-box');
+        let currentSearchQuery = '';
+        let searchHighlightedWords = [];
+
+        // ▼▼▼ 音声再生機能 (Free Dictionary API) ▼▼▼
+        async function speakWord(text) {
+            try {
+                const query = encodeURIComponent(text.toLowerCase());
+                const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${query}`);
+                if (!resp.ok) throw new Error('No audio found');
+                
+                const json = await resp.json();
+                if (Array.isArray(json) && json.length > 0) {
+                    const entry = json[0];
+                    const phonetics = entry.phonetics || [];
+                    
+                    let audioUrl = null;
+                    for (const phon of phonetics) {
+                        if (phon.audio && phon.audio.includes('-us.mp3')) {
+                            audioUrl = phon.audio;
+                            break;
+                        }
+                    }
+                    if (!audioUrl) {
+                        for (const phon of phonetics) {
+                            if (phon.audio) {
+                                audioUrl = phon.audio;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (audioUrl) {
+                        const audio = new Audio(audioUrl);
+                        audio.play();
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('Audio not available, falling back to Web Speech API');
+            }
+            
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                utterance.volume = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        // ▲▲▲ 音声再生機能 終了 ▲▲▲
+
+        function usePreloadedDictsIfAny() {
+            if (window.EJ_DICT_PRELOADED && !ejDict) {
+                ejDict = window.EJ_DICT_PRELOADED;
+            }
+            if (Array.isArray(window.JA_DICT_PRELOADED) && !jaDict) {
+                const map = new Map();
+                window.JA_DICT_PRELOADED.forEach(obj => {
+                    if (!obj || !obj.word) return;
+                    const key = obj.word.trim();
+                    const arr = map.get(key) || [];
+                    arr.push(obj);
+                    map.set(key, arr);
+                });
+                jaDict = map;
+            }
+        }
+
+        function normalizeWord(word) {
+            if (!word) return '';
+            const trimmed = word.trim();
+            const normalized = trimmed.replace(/^[^A-Za-z0-9\u3040-\u30ff\u3400-\u9fff]+|[^A-Za-z0-9\u3040-\u30ff\u3400-\u9fff]+$/g, '');
+            return normalized;
+        }
+
+        function isJapanese(text) {
+            return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
+        }
+
+        function escapeHtml(str) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+            return str.replace(/[&<>"']/g, c => map[c] || c);
+        }
+
+        function formatTime(sec) {
+            if (sec === undefined || sec === null || Number.isNaN(sec)) return '';
+            const s = Math.max(0, Math.floor(sec));
+            const m = Math.floor(s / 60);
+            const r = s % 60;
+            return `${m}:${r.toString().padStart(2, '0')}`;
+        }
+
+        function getEjMeaning(word) {
+            if (!ejDict || !word) return '';
+            const keys = [word, word.toLowerCase()];
+            for (const k of keys) {
+                const val = ejDict[k];
+                if (!val) continue;
+                if (Array.isArray(val)) return val.join(' / ');
+                if (typeof val === 'object') {
+                    if (val.meaning) return val.meaning;
+                    if (val.gloss) return val.gloss;
+                }
+                return String(val);
+            }
+            return '';
+        }
+
+        function getJaMeaningFromMap(word) {
+            if (!jaDict || !word) return '';
+            const entries = jaDict.get(word);
+            if (!entries || !entries.length) return '';
+            const showEntries = entries.slice(0, 2);
+            const parts = showEntries.map(e => {
+                const pos = e.pos_title || e.pos || '';
+                const glosses = Array.isArray(e.senses) && e.senses.length && Array.isArray(e.senses[0].glosses)
+                    ? e.senses[0].glosses.join('、')
+                    : '';
+                return `${pos ? '【' + pos + '】' : ''}${glosses}`;
+            }).filter(Boolean);
+            return parts.join('<br>');
+        }
+
+        function getPhonetic(word) {
+            if (!word) return '';
+            if (ejDict) {
+                const keys = [word, word.toLowerCase()];
+                for (const k of keys) {
+                    const val = ejDict[k];
+                    if (val && typeof val === 'object') {
+                        if (val.phonetic) return String(val.phonetic);
+                        if (val.pron) return String(val.pron);
+                    }
+                }
+            }
+            if (jaDict && jaDict.has(word)) {
+                const entries = jaDict.get(word);
+                for (const e of entries) {
+                    if (e.phonetic) return String(e.phonetic);
+                    if (e.pron) return String(e.pron);
+                    if (e.reading) return String(e.reading);
+                }
+            }
+            return '';
+        }
+
+        async function fetchDefinition(word) {
+            const query = normalizeWord(word);
+            if (!query) {
+                const fallback = `<strong>${word}</strong><br><span style="color:#aaa">単語が抽出できませんでした。</span>`;
+                return fallback;
+            }
+            if (dictCache.has(query)) return dictCache.get(query);
+            let resultHtml;
+            try {
+                if (isJapanese(query)) {
+                    if (jaDict && jaDict.has(query)) {
+                        const entries = jaDict.get(query);
+                        const jaEntries = entries.filter(e => e.lang_code === 'ja');
+                        const showEntries = (jaEntries.length ? jaEntries : entries).slice(0, 2);
+                        const parts = showEntries.map(e => {
+                            const pos = e.pos_title || e.pos || '';
+                            const glosses = Array.isArray(e.senses) && e.senses.length && Array.isArray(e.senses[0].glosses)
+                                ? e.senses[0].glosses.join('、')
+                                : '';
+                            return `${pos ? '【' + pos + '】' : ''}${glosses}`;
+                        }).filter(Boolean);
+                        if (parts.length) {
+                            resultHtml = `<strong>${query}</strong><br>${parts.join('<br>')}`;
+                        }
+                    }
+                } else {
+                    const ejJa = getEjMeaning(query);
+                    const jaFallback = ejJa ? '' : getJaMeaningFromMap(query);
+                    const phon = getPhonetic(query);
+                    const phonText = phon ? ` /${escapeHtml(phon)}/` : '';
+                    if (ejJa || jaFallback) {
+                        const meaning = ejJa || jaFallback;
+                        const rendered = jaFallback ? meaning : escapeHtml(meaning);
+                        resultHtml = `<strong>${query}</strong>${phonText}<br><span style="color:#aaa">${rendered}</span>`;
+                    } else {
+                        resultHtml = `<strong>${query}</strong>${phonText}<br><span style="color:#aaa">ローカル辞書に見つかりませんでした。</span>`;
+                    }
+                }
+            } catch (e) {}
+            if (!resultHtml) {
+                resultHtml = `<strong>${query}</strong><br><span style="color:#aaa">定義が見つかりませんでした。</span>`;
+            }
+            dictCache.set(query, resultHtml);
+            return resultHtml;
+        }
+
+        function toggleStudyMark(word, start) {
+            const key = normalizeWord(word);
+            const existing = studyList[key];
+            if (existing) {
+                delete studyList[key];
+            } else {
+                studyList[key] = {
+                    word,
+                    // startが数値として有効か確認
+                    start: typeof start === 'number' && !Number.isNaN(start) ? start : null,
+                    timestamp: Date.now()
+                };
+            }
+            localStorage.setItem(studyListStorage, JSON.stringify(studyList));
+            updateStudyListUI();
+            updateMarkButtons();
+        }
+
+        function updateStudyListUI() {
+            const content = document.getElementById('study-list-content');
+            const items = Object.entries(studyList).sort((a, b) => b[1].timestamp - a[1].timestamp);
+            content.innerHTML = items.map(([key, data]) => {
+                const t = typeof data.start === 'number' && !Number.isNaN(data.start) ? formatTime(data.start) : '';
+                return `
+                <div class="study-list-item" data-word="${data.word}" data-start="${data.start ?? ''}">
+                    <span class="study-list-item-word">${data.word}</span>
+                    <span class="study-list-item-time">${t}</span>
+                </div>
+                `;
+            }).join('');
+            
+            // イベントリスナーを追加
+            document.querySelectorAll('.study-list-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const s = parseFloat(item.dataset.start);
+                    jumpToWord(item.dataset.word, Number.isFinite(s) ? s : undefined);
+                });
+                item.addEventListener('mouseenter', (ev) => {
+                    showStudyItemTooltip(ev, item.dataset.word, item.dataset.start);
+                });
+                item.addEventListener('mouseleave', () => {
+                    // 学習リストでのツールチップも少し遅延させて消す（必要に応じて）
+                    tooltipHideTimer = setTimeout(() => {
+                        dictTooltip.style.display = 'none';
+                    }, 300);
+                });
+                // 学習リスト内では位置固定でもよいが、念のため追従させない方が使いやすい
+            });
+        }
+
+        // 単語にジャンプ（修正：動画再生位置も移動させる）
+        function jumpToWord(word, start) {
+            const wordElements = Array.from(document.querySelectorAll('.word'));
+            let target = null;
+            
+            // 時刻が指定されている場合、動画の再生位置を移動
+            if (typeof start === 'number' && !Number.isNaN(start)) {
+                player.currentTime = start; // ★【修正点】動画をシークする
+                // 時間で要素を検索
+                target = wordElements.find(el => Math.abs(parseFloat(el.dataset.start) - start) < 0.001);
+            }
+            
+            if (!target) {
+                target = wordElements.find(el => el.innerText === word);
+            }
+            
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.classList.add('active');
+                setTimeout(() => target.classList.remove('active'), 1000);
+            }
+        }
+
+        // 学習リストアイテムのホバーツールチップ
+        async function showStudyItemTooltip(ev, word, start) {
+            if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+            dictTooltip.style.display = 'block';
+            dictTooltip.innerHTML = '検索中…';
+            positionTooltip(ev);
+            const html = await fetchDefinition(word);
+            const key = normalizeWord(word);
+            const isMarked = !!studyList[key];
+            const markBtn = `<button class="study-mark-btn ${isMarked ? 'marked' : ''}" data-word="${word}" data-start="${start ?? ''}" title="学習から削除">★</button>`;
+            const speakBtn = !isJapanese(word) ? `<button class="speaker-btn" data-word="${word}" title="発音を聞く">🔊</button>` : '';
+            
+            dictTooltip.innerHTML = html;
+            const btnHtml = `<div class="dict-tooltip-buttons">${speakBtn}${markBtn}</div>`;
+            dictTooltip.innerHTML += btnHtml;
+            positionTooltip(ev);
+        }
+
+        function updateMarkButtons() {
+            document.querySelectorAll('.study-mark-btn').forEach(btn => {
+                const word = btn.dataset.word;
+                const key = normalizeWord(word);
+                btn.classList.toggle('marked', !!studyList[key]);
+            });
+        }
+
+        // ツールチップの画面端対応
+        function positionTooltip(ev) {
+            const margin = 12;
+            let x = ev.clientX + margin;
+            let y = ev.clientY + margin;
+            
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const tooltipW = dictTooltip.offsetWidth || 340;
+            const tooltipH = dictTooltip.offsetHeight || 200;
+            
+            if (x + tooltipW > vw) {
+                x = Math.max(10, ev.clientX - tooltipW - margin);
+            }
+            if (y + tooltipH > vh) {
+                y = Math.max(10, ev.clientY - tooltipH - margin);
+            }
+            
+            dictTooltip.style.left = x + 'px';
+            dictTooltip.style.top = y + 'px';
+        }
+
+        // 検索機能
+        function clearSearchHighlight() {
+            searchHighlightedWords.forEach(el => el.classList.remove('search-highlight'));
+            searchHighlightedWords = [];
+        }
+
+        function performSearch(query) {
+            currentSearchQuery = query.toLowerCase();
+            clearSearchHighlight();
+            
+            if (!currentSearchQuery) return;
+            
+            const allWords = document.querySelectorAll('.word');
+            allWords.forEach(el => {
+                if (el.innerText.toLowerCase().includes(currentSearchQuery)) {
+                    el.classList.add('search-highlight');
+                    searchHighlightedWords.push(el);
+                }
+            });
+        }
+
+        searchBox.addEventListener('input', (e) => {
+            performSearch(e.target.value);
+        });
+
+        async function loadEJDict() {
+            const candidates = ['../../dictionary/ejdict.json', '../../dictionaries/ejdict.json', '../../ejdict.json'];
+            for (const p of candidates) {
+                try {
+                    const resp = await fetch(p, { cache: 'no-cache' });
+                    if (resp.ok) {
+                        ejDict = await resp.json();
+                        break;
+                    }
+                } catch (e) {
+                }
+            }
+        }
+
+        async function loadJaExtractDict() {
+            const candidates = ['../../dictionary/ja-extract.jsonl', '../../dictionaries/ja-extract.jsonl', '../../ja-extract.jsonl'];
+            for (const p of candidates) {
+                try {
+                    const resp = await fetch(p, { cache: 'no-cache' });
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        const map = new Map();
+                        const lines = text.split(/\r?\n/).filter(Boolean);
+                        for (const line of lines) {
+                            try {
+                                const obj = JSON.parse(line);
+                                if (!obj || !obj.word) continue;
+                                const key = obj.word.trim();
+                                const arr = map.get(key) || [];
+                                arr.push(obj);
+                                map.set(key, arr);
+                            } catch (e) { }
+                        }
+                        jaDict = map;
+                        break;
+                    }
+                } catch (e) { }
+            }
+        }
         
         // --- リサイズ機能 ---
         const resizer = document.getElementById('resizer');
@@ -137,6 +713,42 @@
         });
         // --- リサイズ機能終了 ---
 
+        // 学習リストパネルの表示/非表示
+        document.getElementById('study-list-toggle').addEventListener('click', () => {
+            document.getElementById('study-list-panel').classList.toggle('show');
+        });
+
+        document.getElementById('study-list-clear').addEventListener('click', () => {
+            if (confirm('学習リストをクリアしますか？')) {
+                studyList = {};
+                localStorage.removeItem(studyListStorage);
+                updateStudyListUI();
+                updateMarkButtons();
+            }
+        });
+
+        // ツールチップ内のイベント委譲
+        dictTooltip.addEventListener('click', (e) => {
+            if (e.target.classList.contains('study-mark-btn')) {
+                const word = e.target.dataset.word;
+                const s = parseFloat(e.target.dataset.start);
+                toggleStudyMark(word, Number.isFinite(s) ? s : undefined);
+            }
+            if (e.target.classList.contains('speaker-btn')) {
+                const word = e.target.dataset.word;
+                speakWord(word);
+            }
+        });
+
+        // ★【修正点】ツールチップ自体のホバーイベント
+        // ツールチップに乗っている間は消さない
+        dictTooltip.addEventListener('mouseenter', () => {
+            if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+        });
+        // ツールチップから出たら消す
+        dictTooltip.addEventListener('mouseleave', () => {
+            dictTooltip.style.display = 'none';
+        });
 
         // 1. 初期化処理
         function init() {
@@ -160,21 +772,68 @@
                     span.dataset.segIndex = segIndex;
                     span.dataset.wordIndex = wordIndex;
                     
-                    span.onclick = () => {
-                        player.currentTime = w.start;
+                    let isClicking = false;
+                    span.onclick = (e) => {
+                        e.stopPropagation();
+                        isClicking = true;
+                        player.currentTime = parseFloat(span.dataset.start);
                         player.play();
+                        setTimeout(() => { isClicking = false; }, 50);
                     };
 
-                    span.addEventListener('mouseenter', () => {
+                    span.addEventListener('mouseenter', (ev) => {
+                        if (isClicking) return;
+                        
+                        // マウスが入ったので「隠すタイマー」があればキャンセル
+                        if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+
                         resumeAfterHover = !player.paused && !player.ended;
                         player.pause();
+                        
+                        dictTooltip.style.display = 'block';
+                        dictTooltip.innerHTML = '検索中…';
+                        positionTooltip(ev); // ここで位置を決める（初回のみ）
+                        
+                        pendingWord = w.word;
+                        if (hoverDebounceTimer) { clearTimeout(hoverDebounceTimer); }
+                        hoverDebounceTimer = setTimeout(async () => {
+                            const html = await fetchDefinition(w.word);
+                            const key = normalizeWord(w.word);
+                            const isMarked = !!studyList[key];
+                            const markBtn = `<button class="study-mark-btn ${isMarked ? 'marked' : ''}" data-word="${w.word}" data-start="${w.start}" title="学習に追加">${isMarked ? '★' : '☆'}</button>`;
+                            const speakBtn = !isJapanese(w.word) ? `<button class="speaker-btn" data-word="${w.word}" title="発音を聞く">🔊</button>` : '';
+                            
+                            if (dictTooltip.style.display === 'block' && pendingWord === w.word) {
+                                dictTooltip.innerHTML = html;
+                                const btnHtml = `<div class="dict-tooltip-buttons">${speakBtn}${markBtn}</div>`;
+                                dictTooltip.innerHTML += btnHtml;
+                                // 内容が変わってサイズが変わったかもしれないので再配置
+                                positionTooltip(ev); 
+                            }
+                        }, 150);
                     });
 
+                    // ★【修正点】mousemoveイベントを削除 (カーソル追従を廃止し、位置を固定化)
+                    /*
+                    span.addEventListener('mousemove', (ev) => {
+                        if (dictTooltip.style.display === 'block') {
+                            positionTooltip(ev);
+                        }
+                    });
+                    */
+
                     span.addEventListener('mouseleave', () => {
+                        if (hoverDebounceTimer) { clearTimeout(hoverDebounceTimer); hoverDebounceTimer = null; }
+                        pendingWord = null;
                         if (resumeAfterHover) {
                             player.play();
                         }
                         resumeAfterHover = false;
+                        
+                        // ★【修正点】即座に消さず、少し待ってから消す (ツールチップへの移動猶予)
+                        tooltipHideTimer = setTimeout(() => {
+                            dictTooltip.style.display = 'none';
+                        }, 300);
                     });
                     
                     segDiv.appendChild(span);
@@ -220,10 +879,17 @@
         }
 
         // 実行開始
-        // DOMContentLoadedを待つことで安全性を高めています
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            usePreloadedDictsIfAny();
+            if (!ejDict || !jaDict) {
+                if (canLoadLocalDict) {
+                    await loadEJDict();
+                    await loadJaExtractDict();
+                }
+            }
             init();
             cacheWords();
+            updateStudyListUI();
             requestAnimationFrame(updateHighlight);
         });
 
