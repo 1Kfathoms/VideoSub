@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Language Player (API Dict Version)</title>
+    <title>AI Language Player (PiP Audio Fixed)</title>
     <style>
         body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #fff; }
         #video-container { flex: 0 0 75%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; position: relative; }
@@ -36,6 +36,10 @@
         #search-box:focus { outline: none; border-color: #00FFFF; box-shadow: 0 0 6px rgba(0, 255, 255, 0.3); }
         .word.search-highlight { background: #FFB90C; color: #000; font-weight: bold; }
 
+        /* PiPボタン */
+        #pip-btn { position: fixed; top: 10px; left: 10px; z-index: 999; background: #333; color: #fff; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+        #pip-btn:hover { background: #555; }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #video-container { flex: none; width: 100%; height: 40vh; border-bottom: 2px solid #333; }
@@ -43,10 +47,13 @@
             #transcript-container { width: 100%; height: 60vh; border-left: none; padding: 8px; }
             .word { padding: 3px 5px; font-size: 1.05em; margin-bottom: 3px; }
             #search-box { position: sticky; top: 0; right: auto; width: 100%; box-sizing: border-box; margin: 0 0 8px 0; }
+            #pip-btn { display: none; }
         }
     </style>
 </head>
 <body>
+
+    <button id="pip-btn" onclick="togglePiP()">⧉ PiP</button>
 
     <div id="video-container">
         <div id="error-message"></div>
@@ -71,23 +78,96 @@
         const searchBox = document.getElementById('search-box');
         
         let resumeAfterHover = false;
-        // 単語 or ツールチップ上にカーソルが乗っている数
         let hoverActiveCount = 0;
         let hoverDebounceTimer = null;
         let tooltipHideTimer = null;
         let pendingWord = null;
-        let dictCache = new Map(); // API結果のキャッシュ
-        let allWords = []; // ハイライト用
+        let dictCache = new Map();
+        let allWords = [];
 
         // --- 音声再生機能 ---
         async function speakWord(text) {
-            // 簡易TTS
             if (window.speechSynthesis) {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'en-US';
                 utterance.rate = 1.0;
                 window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- PiP機能 (Document Picture-in-Picture) ---
+        async function togglePiP() {
+            if (!window.documentPictureInPicture) {
+                alert("この機能はDocument Picture-in-Picture APIに対応したブラウザ（Chrome, Edge v111以降など）でのみ利用可能です。");
+                return;
+            }
+
+            if (window.documentPictureInPicture.window) {
+                window.documentPictureInPicture.window.close();
+                return;
+            }
+
+            try {
+                const pipWindow = await window.documentPictureInPicture.requestWindow({
+                    width: 800,
+                    height: 600
+                });
+
+                // 【重要】PiPウィンドウに音声再生関数を渡す（これが無いと音が鳴りません）
+                pipWindow.speakWord = speakWord;
+
+                // スタイルシートをコピー
+                [...document.styleSheets].forEach((styleSheet) => {
+                    try {
+                        const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+                        const style = document.createElement('style');
+                        style.textContent = cssRules;
+                        pipWindow.document.head.appendChild(style);
+                    } catch (e) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.type = styleSheet.type;
+                        link.media = styleSheet.media;
+                        link.href = styleSheet.href;
+                        pipWindow.document.head.appendChild(link);
+                    }
+                });
+
+                const videoContainer = document.getElementById('video-container');
+                const transcriptContainer = document.getElementById('transcript-container');
+                const resizer = document.getElementById('resizer');
+                const tooltip = document.getElementById('dict-tooltip');
+                const pipBtn = document.getElementById('pip-btn');
+
+                pipWindow.document.body.append(videoContainer);
+                pipWindow.document.body.append(transcriptContainer);
+                pipWindow.document.body.append(tooltip);
+                
+                pipWindow.document.body.style.display = 'flex';
+                pipWindow.document.body.style.flexDirection = 'column';
+                videoContainer.style.flex = '0 0 50%';
+                transcriptContainer.style.flex = '1';
+                
+                resizer.style.display = 'none';
+                pipBtn.innerText = "⧉ 閉じる";
+
+                pipWindow.addEventListener('pagehide', (event) => {
+                    const originalBody = document.body;
+                    resizer.style.display = 'block';
+                    resizer.parentNode.insertBefore(videoContainer, resizer);
+                    resizer.after(transcriptContainer);
+                    originalBody.appendChild(tooltip);
+
+                    videoContainer.style.flex = '0 0 75%';
+                    videoContainer.style.height = '';
+                    transcriptContainer.style.flex = '1';
+                    
+                    pipBtn.innerText = "⧉ PiP";
+                });
+
+            } catch (err) {
+                console.error("PiP Error:", err);
             }
         }
 
@@ -104,38 +184,22 @@
             if (dictCache.has(query)) return dictCache.get(query);
             
             try {
-                // Free Dictionary APIを利用
                 const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query)}`);
-                
-                if (!resp.ok) {
-                    throw new Error('Not found');
-                }
-
+                if (!resp.ok) throw new Error('Not found');
                 const json = await resp.json();
-                const entry = json[0]; // 最初の結果を使用
+                const entry = json[0];
 
-                // HTML生成
                 let html = `<div class="dict-header">`;
                 html += `<span class="dict-word">${entry.word}</span>`;
-                
-                // 発音記号
-                if (entry.phonetic) {
-                    html += `<span class="dict-phonetic">${entry.phonetic}</span>`;
-                }
-                
-                // 音声再生ボタン
+                if (entry.phonetic) html += `<span class="dict-phonetic">${entry.phonetic}</span>`;
                 html += `<button class="speaker-btn" onclick="speakWord('${entry.word.replace(/'/g, "\\'")}')">🔊</button>`;
                 html += `</div>`;
 
-                // 意味（品詞ごとに表示）
-                // API結果が多すぎる場合があるため、最大3つの意味グループまで表示
                 const meaningsToShow = entry.meanings.slice(0, 3);
-                
                 if (meaningsToShow.length === 0) {
                     html += `<div style="color:#aaa">定義が見つかりませんでした</div>`;
                 } else {
                     meaningsToShow.forEach(m => {
-                        // 定義も各品詞につき最初の1つだけ表示してスッキリさせる
                         const def = m.definitions && m.definitions.length > 0 ? m.definitions[0].definition : '';
                         if (def) {
                             html += `<div class="dict-meaning-group">`;
@@ -145,23 +209,18 @@
                         }
                     });
                 }
-                
                 dictCache.set(query, html);
                 return html;
-
             } catch (e) {
-                // エラーまたは見つからない場合
                 const errorHtml = `<div class="dict-header"><span class="dict-word">${query}</span></div><span style="color:#aaa">辞書定義なし</span>`;
                 dictCache.set(query, errorHtml);
                 return errorHtml;
             }
         }
 
-        // --- シーク機能（安全性向上版） ---
+        // --- シーク機能 ---
         function safeSeek(time) {
             if (!Number.isFinite(time)) return;
-            
-            // シーク可能範囲のチェック（preloadされていない部分へのシーク対策）
             let seekable = false;
             if (player.seekable && player.seekable.length > 0) {
                 for (let i = 0; i < player.seekable.length; i++) {
@@ -170,21 +229,14 @@
                         break;
                     }
                 }
-            } else {
-                seekable = true; // 情報がない場合は試行する
-            }
+            } else { seekable = true; }
 
             if (seekable) {
-                if (player.fastSeek) {
-                    player.fastSeek(time);
-                } else {
-                    player.currentTime = time;
-                }
-                if (player.paused) {
-                    player.play().catch(e => console.log('Autoplay blocked:', e));
-                }
+                if (player.fastSeek) player.fastSeek(time);
+                else player.currentTime = time;
+                if (player.paused) player.play().catch(e => console.log('Autoplay blocked:', e));
             } else {
-                errorMsgDiv.innerText = "読み込み待ちです。しばらくお待ちください。";
+                errorMsgDiv.innerText = "読み込み待ちです。";
                 errorMsgDiv.style.display = 'block';
                 setTimeout(() => errorMsgDiv.style.display = 'none', 3000);
             }
@@ -213,7 +265,6 @@
                     
                     let isClicking = false;
                     
-                    // クリックイベント
                     span.onclick = (e) => {
                         e.stopPropagation();
                         isClicking = true;
@@ -222,19 +273,13 @@
                         setTimeout(() => { isClicking = false; }, 200);
                     };
 
-                    // ホバーイベント
                     span.addEventListener('mouseenter', (ev) => {
                         if (isClicking) return;
                         if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
                         
-                        // 初回ホバー時のみ「元々再生中だったか」を記録
-                        if (hoverActiveCount === 0) {
-                            resumeAfterHover = !player.paused && !player.ended;
-                        }
+                        if (hoverActiveCount === 0) resumeAfterHover = !player.paused && !player.ended;
                         hoverActiveCount++;
-                        if (!player.paused && !player.ended) {
-                            player.pause();
-                        }
+                        if (!player.paused && !player.ended) player.pause();
 
                         dictTooltip.style.display = 'block';
                         dictTooltip.innerHTML = '<div class="dict-header"><span class="dict-word">Loading...</span></div>';
@@ -243,10 +288,8 @@
 
                         if (hoverDebounceTimer) clearTimeout(hoverDebounceTimer);
                         
-                        // APIリクエストのデバウンス（150ms）
                         hoverDebounceTimer = setTimeout(async () => {
                             const html = await fetchDefinition(w.word);
-                            // まだ同じ単語を表示すべき状態か確認
                             if (dictTooltip.style.display === 'block' && pendingWord === w.word) {
                                 dictTooltip.innerHTML = html;
                                 positionTooltip(ev);
@@ -257,13 +300,9 @@
                     span.addEventListener('mouseleave', () => {
                         if (hoverDebounceTimer) clearTimeout(hoverDebounceTimer);
                         pendingWord = null;
-                        
-                        // ホバー対象の数を減らし、ゼロなら再生再開＆ツールチップ消去
                         hoverActiveCount = Math.max(0, hoverActiveCount - 1);
                         if (hoverActiveCount === 0) {
-                            if (resumeAfterHover) {
-                                player.play().catch(()=>{});
-                            }
+                            if (resumeAfterHover) player.play().catch(()=>{});
                             resumeAfterHover = false;
                             tooltipHideTimer = setTimeout(() => dictTooltip.style.display = 'none', 300);
                         }
@@ -280,31 +319,22 @@
             });
         }
 
-        // --- 自動再生（オートプレイ）試行 ---
         async function attemptAutoplay() {
-            try {
-                await player.play();
-            } catch (e) {
-                try {
-                    player.muted = true;
-                    await player.play();
-                    // ミュートで再生が開始された場合は簡易メッセージを一時表示（任意）
-                    // errorMsgDiv.innerText = '自動再生のため、ミュートで再生しています。';
-                    // errorMsgDiv.style.display = 'block';
-                    // setTimeout(() => errorMsgDiv.style.display = 'none', 2500);
-                } catch (e2) {
-                    // 自動再生がブロックされた場合は何もしない（ユーザー操作を待つ）
-                }
+            try { await player.play(); } catch (e) {
+                try { player.muted = true; await player.play(); } catch (e2) {}
             }
         }
 
         // --- ツールチップ位置計算 ---
         function positionTooltip(ev) {
             const margin = 12;
+            const currentWindow = ev.view || window;
+            
             let x = ev.clientX + margin;
             let y = ev.clientY + margin;
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
+            
+            const vw = currentWindow.innerWidth;
+            const vh = currentWindow.innerHeight;
             const tooltipW = dictTooltip.offsetWidth || 320;
             const tooltipH = dictTooltip.offsetHeight || 150;
 
@@ -315,29 +345,21 @@
             dictTooltip.style.top = y + 'px';
         }
 
-        // ツールチップ自体のホバーイベント（乗っている間は動画停止＋消さない）
         dictTooltip.addEventListener('mouseenter', () => {
             if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
-            if (hoverActiveCount === 0) {
-                resumeAfterHover = !player.paused && !player.ended;
-            }
+            if (hoverActiveCount === 0) resumeAfterHover = !player.paused && !player.ended;
             hoverActiveCount++;
-            if (!player.paused && !player.ended) {
-                player.pause();
-            }
+            if (!player.paused && !player.ended) player.pause();
         });
         dictTooltip.addEventListener('mouseleave', () => {
             hoverActiveCount = Math.max(0, hoverActiveCount - 1);
             if (hoverActiveCount === 0) {
-                if (resumeAfterHover) {
-                    player.play().catch(()=>{});
-                }
+                if (resumeAfterHover) player.play().catch(()=>{});
                 resumeAfterHover = false;
                 dictTooltip.style.display = 'none';
             }
         });
 
-        // --- リサイザー機能 ---
         const resizer = document.getElementById('resizer');
         const leftPanel = document.getElementById('video-container');
         resizer.addEventListener('mousedown', (e) => {
@@ -357,7 +379,6 @@
             document.addEventListener('mouseup', stopDrag);
         });
 
-        // --- 字幕ハイライト & 検索 ---
         function cacheWords() {
             allWords = Array.from(document.querySelectorAll('.word')).map(el => ({
                 el: el, start: parseFloat(el.dataset.start), end: parseFloat(el.dataset.end)
@@ -379,7 +400,6 @@
             requestAnimationFrame(updateHighlight);
         }
 
-        // 検索機能
         searchBox.addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             allWords.forEach(w => {
@@ -393,7 +413,6 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             init();
-            // ページ読み込み直後に再生開始を試みる
             attemptAutoplay();
             cacheWords();
             requestAnimationFrame(updateHighlight);
