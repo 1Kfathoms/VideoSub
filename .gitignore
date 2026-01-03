@@ -6,9 +6,10 @@
 # - Pythonのキャッシュファイル等、一般的な不要ファイルも無視
 
 # 除外したい特定のフォルダ
-output/
+output/*
 .tmp.driveupload/
 .tmp.drivedownload/
+others/
 
 # Python関連の一般的な除外設定
 __pycache__/

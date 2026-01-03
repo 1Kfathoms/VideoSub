@@ -3,258 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Language Player (PiP Audio Fixed)</title>
+    <title>AI Language Player</title>
     <style>
-        body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #fff; }
-        #video-container { flex: 0 0 75%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; position: relative; }
-        video { max-width: 100%; max-height: 100%; }
-        #error-message { display: none; color: #ff5555; background: rgba(0,0,0,0.8); padding: 20px; border: 1px solid #ff5555; border-radius: 8px; text-align: center; z-index: 100; position: absolute; }
-        #resizer { width: 8px; background: #333; cursor: col-resize; transition: background 0.2s; z-index: 10; }
-        #resizer:hover, #resizer.active { background: #00FFFF; }
-        #transcript-container { flex: 1; overflow-y: auto; padding: 8px; box-sizing: border-box; border-left: none; min-width: 200px; font-size: 0.95em; }
-        body.resizing { cursor: col-resize; user-select: none; }
-        .segment { margin-bottom: 8px; padding: 4px; border-radius: 8px; transition: background 0.2s; }
-        .segment:hover { background: #2a2a2a; }
-        .word { cursor: pointer; padding: 0px 2px; border-radius: 4px; transition: all 0.1s; margin-right: 1px; display: inline-block; line-height: 1.15; }
-        .word:hover { background: #444; }
-        .word.active { background: #00FFFF; color: #000; font-weight: inherit; }
-        .translation { display: block; margin-top: 3px; color: #aaa; font-size: 0.8em; line-height: 1.25; border-left: 2px solid #555; padding-left: 5px; }
+        :root {
+            --base-font-size: 16px;
+            --bg-color: #1e1e1e;
+            --text-color: #fff;
+            --highlight-color: #00FFFF;
+            --search-highlight: #FFB90C;
+            --panel-bg: #222;
+            --border-color: #444;
+        }
+        body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: var(--bg-color); color: var(--text-color); overflow: hidden; }
         
-        /* 辞書・検索用のCSS */
-        .dict-tooltip { position: fixed; max-width: 320px; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); font-size: 0.9em; line-height: 1.4; z-index: 1000; pointer-events: auto; max-height: 60vh; overflow-y: auto; }
+        /* Flex Layout Logic */
+        #main-wrapper { display: flex; width: 100%; height: 100%; flex-direction: row; }
+        
+        /* Video Section */
+        #video-container { flex: 0 0 70%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; position: relative; min-width: 200px; min-height: 200px; }
+        video { max-width: 100%; max-height: 100%; }
+        
+        /* Resizer */
+        #resizer { background: #333; z-index: 10; transition: background 0.2s; flex: 0 0 8px; position: relative; }
+        #resizer:hover, #resizer.active { background: var(--highlight-color); }
+        #resizer.horizontal { cursor: row-resize; height: 8px; width: 100%; flex: 0 0 8px; }
+        #resizer.vertical { cursor: col-resize; width: 8px; height: 100%; flex: 0 0 8px; }
+
+        /* Transcript Section */
+        #transcript-container { flex: 1; display: flex; flex-direction: column; min-width: 200px; min-height: 200px; background: var(--bg-color); font-size: var(--base-font-size); position: relative; }
+        
+        /* Header Bar (Search & Settings) */
+        #controls-header { 
+            display: flex; 
+            align-items: center; 
+            padding: 8px; 
+            background: var(--panel-bg); 
+            border-bottom: 1px solid var(--border-color); 
+            gap: 8px; 
+            flex-wrap: nowrap; 
+            overflow-x: hidden;
+        }
+        
+        /* Search Box */
+        .search-group { 
+            display: flex; 
+            align-items: center; 
+            background: #333; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            padding: 2px 5px; 
+            flex: 1 1 auto; 
+            min-width: 160px; 
+            max-width: 400px;
+        }
+        #search-box { 
+            background: transparent; 
+            border: none; 
+            color: #fff; 
+            padding: 4px; 
+            font-size: 0.9em; 
+            flex: 1; 
+            width: 50px; 
+            outline: none; 
+            min-width: 30px; 
+        }
+        #search-count { font-size: 0.8em; color: #aaa; margin: 0 8px; white-space: nowrap; user-select: none; }
+        .search-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 2px 6px; font-size: 1em; border-left: 1px solid #444; flex-shrink: 0; }
+        .search-btn:hover { color: #fff; background: #444; }
+        .search-btn:disabled { color: #555; cursor: default; }
+
+        /* Settings & PiP Buttons */
+        .icon-btn { 
+            background: #333; 
+            border: 1px solid var(--border-color); 
+            color: #fff; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.9em; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            user-select: none;
+            flex-shrink: 0; 
+            white-space: nowrap;
+        }
+        .icon-btn:hover { background: #444; }
+        
+        /* Settings Panel */
+        #settings-panel { display: none; position: absolute; top: 45px; right: 10px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; z-index: 1001; box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 150px; }
+        .setting-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; }
+        .setting-item:last-child { margin-bottom: 0; }
+        .setting-label { color: #ddd; }
+        .font-ctrl-group { display: flex; gap: 5px; }
+        
+        /* Transcript Content */
+        #content { flex: 1; overflow-y: auto; padding: 10px; }
+        .segment { margin-bottom: 0.5em; padding: 0.25em; border-radius: 4px; transition: background 0.2s; }
+        .segment:hover { background: #2a2a2a; }
+        .word { cursor: pointer; padding: 0 2px; border-radius: 4px; transition: all 0.1s; display: inline-block; line-height: 1.2; }
+        .word:hover { background: #444; }
+        .word.active { background: var(--highlight-color); color: #000; }
+        .word.search-highlight { background: var(--search-highlight); color: #000; }
+        .word.search-focus { outline: 2px solid #fff; box-shadow: 0 0 5px var(--search-highlight); }
+        .translation { display: block; margin-top: 0.2em; color: #aaa; font-size: 0.85em; border-left: 2px solid #555; padding-left: 6px; }
+
+        /* Dict Tooltip */
+        .dict-tooltip { position: fixed; max-width: 320px; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); font-size: 0.9rem; z-index: 2000; max-height: 60vh; overflow-y: auto; display: none; pointer-events: auto; }
         .dict-header { display: flex; align-items: baseline; gap: 8px; border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 6px; }
-        .dict-word { font-weight: bold; font-size: 1.1em; color: #fff; }
-        .dict-phonetic { color: #888; font-family: 'Segoe UI Symbol', sans-serif; }
-        .dict-meaning-group { margin-bottom: 8px; }
-        .dict-pos { display: inline-block; background: #333; color: #00FFFF; padding: 1px 4px; border-radius: 3px; font-size: 0.75em; margin-right: 6px; border: 1px solid #444; }
-        .dict-def { color: #ddd; font-size: 0.9em; display: inline; }
-        .speaker-btn { background: none; border: none; cursor: pointer; color: #00FFFF; font-size: 1em; padding: 0 4px; }
+        .dict-word { font-weight: bold; font-size: 1.1em; }
+        .dict-pos { background: #333; color: var(--highlight-color); padding: 1px 4px; border-radius: 3px; font-size: 0.75em; margin-right: 6px; border: 1px solid #444; }
+        .speaker-btn { background: none; border: none; cursor: pointer; color: #00FFFF; font-size: 1em; padding: 0 4px; margin-left: auto; }
         .speaker-btn:hover { color: #fff; }
 
-        #search-box { position: fixed; top: 10px; right: 10px; width: 125px; padding: 8px 12px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 0.9em; z-index: 999; }
-        #search-box::placeholder { color: #888; }
-        #search-box:focus { outline: none; border-color: #00FFFF; box-shadow: 0 0 6px rgba(0, 255, 255, 0.3); }
-        .word.search-highlight { background: #FFB90C; color: #000; font-weight: bold; }
+        /* Error Message */
+        #error-message { display: none; color: #ff5555; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 8px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; pointer-events: none; }
 
-        /* PiPボタン */
-        #pip-btn { position: fixed; top: 10px; left: 10px; z-index: 999; background: #333; color: #fff; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
-        #pip-btn:hover { background: #555; }
-
+        /* Responsive / Mobile / PiP Column Layout */
         @media (max-width: 768px) {
-            body { flex-direction: column; }
-            #video-container { flex: none; width: 100%; height: 40vh; border-bottom: 2px solid #333; }
-            #resizer { display: none; }
-            #transcript-container { width: 100%; height: 60vh; border-left: none; padding: 8px; }
-            .word { padding: 3px 5px; font-size: 1.05em; margin-bottom: 3px; }
-            #search-box { position: sticky; top: 0; right: auto; width: 100%; box-sizing: border-box; margin: 0 0 8px 0; }
-            #pip-btn { display: none; }
+            #main-wrapper { flex-direction: column; }
+            #video-container { flex: 0 0 40%; width: 100%; border-bottom: none; }
+            #resizer.vertical { display: none; }
         }
     </style>
 </head>
 <body>
 
-    <button id="pip-btn" onclick="togglePiP()">⧉ PiP</button>
+    <div id="main-wrapper">
+        <div id="video-container">
+            <div id="error-message"></div>
+            <video id="player" controls playsinline webkit-playsinline preload="auto"></video>
+        </div>
 
-    <div id="video-container">
-        <div id="error-message"></div>
-        <video id="player" controls playsinline webkit-playsinline preload="auto"></video> 
+        <div id="resizer" class="vertical"></div>
+
+        <div id="transcript-container">
+            <div id="controls-header">
+                <button id="pip-btn" class="icon-btn" onclick="togglePiP()" title="Picture in Picture">⧉ PiP</button>
+                
+                <div class="search-group">
+                    <input type="text" id="search-box" placeholder="検索...">
+                    <span id="search-count">0/0</span>
+                    <button class="search-btn" id="search-prev" onclick="navSearch(-1)">▲</button>
+                    <button class="search-btn" id="search-next" onclick="navSearch(1)">▼</button>
+                </div>
+
+                <button id="settings-btn" class="icon-btn" onclick="toggleSettings(event)" title="設定">⚙️</button>
+            </div>
+
+            <div id="settings-panel">
+                <div class="setting-item">
+                    <span class="setting-label">文字サイズ</span>
+                    <div class="font-ctrl-group">
+                        <button class="icon-btn" onclick="changeFontSize(-1)">A-</button>
+                        <button class="icon-btn" onclick="changeFontSize(1)">A+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content"></div>
+        </div>
     </div>
 
-    <div id="resizer"></div>
-    <div id="transcript-container">
-        <input type="text" id="search-box" placeholder="単語を検索...">
-        <div id="content"></div>
-    </div>
-
-    <script src="data.js"></script>
-
-    <div id="dict-tooltip" class="dict-tooltip" style="display:none;"></div>
+    <div id="dict-tooltip" class="dict-tooltip"></div>
     
+    <script src="data.js"></script>
     <script>
+        // --- State Variables ---
         const player = document.getElementById('player');
         const contentDiv = document.getElementById('content');
-        const errorMsgDiv = document.getElementById('error-message');
         const dictTooltip = document.getElementById('dict-tooltip');
-        const searchBox = document.getElementById('search-box');
+        const mainWrapper = document.getElementById('main-wrapper');
+        const resizer = document.getElementById('resizer');
+        const videoContainer = document.getElementById('video-container');
+        const settingsPanel = document.getElementById('settings-panel');
         
-        let resumeAfterHover = false;
+        let pipWindowRef = null;
+
+        // Search State
+        let allWords = [];
+        let searchMatches = [];
+        let currentMatchIndex = -1;
+
+        // Tooltip State
         let hoverActiveCount = 0;
+        let resumeAfterHover = false;
         let hoverDebounceTimer = null;
         let tooltipHideTimer = null;
-        let pendingWord = null;
         let dictCache = new Map();
-        let allWords = [];
 
-        // --- 音声再生機能 ---
-        async function speakWord(text) {
-            if (window.speechSynthesis) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'en-US';
-                utterance.rate = 1.0;
-                window.speechSynthesis.speak(utterance);
-            }
-        }
-
-        // --- PiP機能 (Document Picture-in-Picture) ---
-        async function togglePiP() {
-            if (!window.documentPictureInPicture) {
-                alert("この機能はDocument Picture-in-Picture APIに対応したブラウザ（Chrome, Edge v111以降など）でのみ利用可能です。");
-                return;
-            }
-
-            if (window.documentPictureInPicture.window) {
-                window.documentPictureInPicture.window.close();
-                return;
-            }
-
-            try {
-                const pipWindow = await window.documentPictureInPicture.requestWindow({
-                    width: 800,
-                    height: 600
-                });
-
-                // 【重要】PiPウィンドウに音声再生関数を渡す（これが無いと音が鳴りません）
-                pipWindow.speakWord = speakWord;
-
-                // スタイルシートをコピー
-                [...document.styleSheets].forEach((styleSheet) => {
-                    try {
-                        const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
-                        const style = document.createElement('style');
-                        style.textContent = cssRules;
-                        pipWindow.document.head.appendChild(style);
-                    } catch (e) {
-                        const link = document.createElement('link');
-                        link.rel = 'stylesheet';
-                        link.type = styleSheet.type;
-                        link.media = styleSheet.media;
-                        link.href = styleSheet.href;
-                        pipWindow.document.head.appendChild(link);
-                    }
-                });
-
-                const videoContainer = document.getElementById('video-container');
-                const transcriptContainer = document.getElementById('transcript-container');
-                const resizer = document.getElementById('resizer');
-                const tooltip = document.getElementById('dict-tooltip');
-                const pipBtn = document.getElementById('pip-btn');
-
-                pipWindow.document.body.append(videoContainer);
-                pipWindow.document.body.append(transcriptContainer);
-                pipWindow.document.body.append(tooltip);
-                
-                pipWindow.document.body.style.display = 'flex';
-                pipWindow.document.body.style.flexDirection = 'column';
-                videoContainer.style.flex = '0 0 50%';
-                transcriptContainer.style.flex = '1';
-                
-                resizer.style.display = 'none';
-                pipBtn.innerText = "⧉ 閉じる";
-
-                pipWindow.addEventListener('pagehide', (event) => {
-                    const originalBody = document.body;
-                    resizer.style.display = 'block';
-                    resizer.parentNode.insertBefore(videoContainer, resizer);
-                    resizer.after(transcriptContainer);
-                    originalBody.appendChild(tooltip);
-
-                    videoContainer.style.flex = '0 0 75%';
-                    videoContainer.style.height = '';
-                    transcriptContainer.style.flex = '1';
-                    
-                    pipBtn.innerText = "⧉ PiP";
-                });
-
-            } catch (err) {
-                console.error("PiP Error:", err);
-            }
-        }
-
-        // --- 辞書機能 (API版) ---
-        function normalizeWord(word) {
-            if (!word) return '';
-            return word.trim().replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '');
-        }
-
-        async function fetchDefinition(word) {
-            const query = normalizeWord(word);
-            if (!query) return `<div class="dict-header"><span class="dict-word">${word}</span></div><span style="color:#aaa">検索不可</span>`;
-            
-            if (dictCache.has(query)) return dictCache.get(query);
-            
-            try {
-                const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query)}`);
-                if (!resp.ok) throw new Error('Not found');
-                const json = await resp.json();
-                const entry = json[0];
-
-                let html = `<div class="dict-header">`;
-                html += `<span class="dict-word">${entry.word}</span>`;
-                if (entry.phonetic) html += `<span class="dict-phonetic">${entry.phonetic}</span>`;
-                html += `<button class="speaker-btn" onclick="speakWord('${entry.word.replace(/'/g, "\\'")}')">🔊</button>`;
-                html += `</div>`;
-
-                const meaningsToShow = entry.meanings.slice(0, 3);
-                if (meaningsToShow.length === 0) {
-                    html += `<div style="color:#aaa">定義が見つかりませんでした</div>`;
-                } else {
-                    meaningsToShow.forEach(m => {
-                        const def = m.definitions && m.definitions.length > 0 ? m.definitions[0].definition : '';
-                        if (def) {
-                            html += `<div class="dict-meaning-group">`;
-                            html += `<span class="dict-pos">${m.partOfSpeech}</span>`;
-                            html += `<span class="dict-def">${def}</span>`;
-                            html += `</div>`;
-                        }
-                    });
-                }
-                dictCache.set(query, html);
-                return html;
-            } catch (e) {
-                const errorHtml = `<div class="dict-header"><span class="dict-word">${query}</span></div><span style="color:#aaa">辞書定義なし</span>`;
-                dictCache.set(query, errorHtml);
-                return errorHtml;
-            }
-        }
-
-        // --- シーク機能 ---
-        function safeSeek(time) {
-            if (!Number.isFinite(time)) return;
-            let seekable = false;
-            if (player.seekable && player.seekable.length > 0) {
-                for (let i = 0; i < player.seekable.length; i++) {
-                    if (time >= player.seekable.start(i) && time <= player.seekable.end(i)) {
-                        seekable = true;
-                        break;
-                    }
-                }
-            } else { seekable = true; }
-
-            if (seekable) {
-                if (player.fastSeek) player.fastSeek(time);
-                else player.currentTime = time;
-                if (player.paused) player.play().catch(e => console.log('Autoplay blocked:', e));
-            } else {
-                errorMsgDiv.innerText = "読み込み待ちです。";
-                errorMsgDiv.style.display = 'block';
-                setTimeout(() => errorMsgDiv.style.display = 'none', 3000);
-            }
-        }
-
-        // --- 初期化 ---
-        function init() {
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
             if (typeof MEDIA_DATA === 'undefined') {
-                errorMsgDiv.innerHTML = 'data.js が読み込まれていません。';
-                errorMsgDiv.style.display = 'block';
+                showError('data.js が読み込まれていません。');
                 return;
             }
-
             player.src = MEDIA_DATA.videoFile;
+            
+            renderSegments();
+            
+            allWords = Array.from(document.querySelectorAll('.word')).map(el => ({
+                el: el, 
+                start: parseFloat(el.dataset.start), 
+                end: parseFloat(el.dataset.end)
+            }));
 
+            checkLayout();
+            window.addEventListener('resize', checkLayout);
+            attemptAutoplay();
+            requestAnimationFrame(updateHighlight);
+        });
+
+        function renderSegments() {
             MEDIA_DATA.segments.forEach((segment) => {
                 const segDiv = document.createElement('div');
                 segDiv.className = 'segment';
+                segDiv.dataset.start = segment.start;
                 
                 segment.words.forEach((w) => {
                     const span = document.createElement('span');
@@ -263,51 +227,12 @@
                     span.dataset.start = w.start;
                     span.dataset.end = w.end;
                     
-                    let isClicking = false;
-                    
                     span.onclick = (e) => {
                         e.stopPropagation();
-                        isClicking = true;
-                        const startTime = parseFloat(span.dataset.start);
-                        safeSeek(startTime);
-                        setTimeout(() => { isClicking = false; }, 200);
+                        safeSeek(w.start);
                     };
 
-                    span.addEventListener('mouseenter', (ev) => {
-                        if (isClicking) return;
-                        if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
-                        
-                        if (hoverActiveCount === 0) resumeAfterHover = !player.paused && !player.ended;
-                        hoverActiveCount++;
-                        if (!player.paused && !player.ended) player.pause();
-
-                        dictTooltip.style.display = 'block';
-                        dictTooltip.innerHTML = '<div class="dict-header"><span class="dict-word">Loading...</span></div>';
-                        positionTooltip(ev);
-                        pendingWord = w.word;
-
-                        if (hoverDebounceTimer) clearTimeout(hoverDebounceTimer);
-                        
-                        hoverDebounceTimer = setTimeout(async () => {
-                            const html = await fetchDefinition(w.word);
-                            if (dictTooltip.style.display === 'block' && pendingWord === w.word) {
-                                dictTooltip.innerHTML = html;
-                                positionTooltip(ev);
-                            }
-                        }, 150);
-                    });
-
-                    span.addEventListener('mouseleave', () => {
-                        if (hoverDebounceTimer) clearTimeout(hoverDebounceTimer);
-                        pendingWord = null;
-                        hoverActiveCount = Math.max(0, hoverActiveCount - 1);
-                        if (hoverActiveCount === 0) {
-                            if (resumeAfterHover) player.play().catch(()=>{});
-                            resumeAfterHover = false;
-                            tooltipHideTimer = setTimeout(() => dictTooltip.style.display = 'none', 300);
-                        }
-                    });
-                    
+                    setupHoverEvents(span, w.word);
                     segDiv.appendChild(span);
                 });
                 
@@ -319,30 +244,34 @@
             });
         }
 
-        async function attemptAutoplay() {
-            try { await player.play(); } catch (e) {
-                try { player.muted = true; await player.play(); } catch (e2) {}
-            }
-        }
+        // --- Tooltip & Hover Logic ---
+        function setupHoverEvents(element, wordText) {
+            element.addEventListener('mouseenter', (ev) => {
+                if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+                
+                // Pause logic
+                if (hoverActiveCount === 0) resumeAfterHover = !player.paused && !player.ended;
+                hoverActiveCount++;
+                if (!player.paused) player.pause();
 
-        // --- ツールチップ位置計算 ---
-        function positionTooltip(ev) {
-            const margin = 12;
-            const currentWindow = ev.view || window;
-            
-            let x = ev.clientX + margin;
-            let y = ev.clientY + margin;
-            
-            const vw = currentWindow.innerWidth;
-            const vh = currentWindow.innerHeight;
-            const tooltipW = dictTooltip.offsetWidth || 320;
-            const tooltipH = dictTooltip.offsetHeight || 150;
+                dictTooltip.style.display = 'block';
+                dictTooltip.innerHTML = '<div class="dict-header"><span class="dict-word">Loading...</span></div>';
+                positionTooltip(ev);
 
-            if (x + tooltipW > vw) x = Math.max(10, ev.clientX - tooltipW - margin);
-            if (y + tooltipH > vh) y = Math.max(10, ev.clientY - tooltipH - margin);
+                if (hoverDebounceTimer) clearTimeout(hoverDebounceTimer);
+                hoverDebounceTimer = setTimeout(async () => {
+                    const html = await fetchDefinition(wordText);
+                    if(dictTooltip.style.display !== 'none') {
+                        dictTooltip.innerHTML = html;
+                        positionTooltip(ev);
+                    }
+                }, 150);
+            });
 
-            dictTooltip.style.left = x + 'px';
-            dictTooltip.style.top = y + 'px';
+            element.addEventListener('mouseleave', () => {
+                if (hoverDebounceTimer) clearTimeout(hoverDebounceTimer);
+                handleMouseLeave();
+            });
         }
 
         dictTooltip.addEventListener('mouseenter', () => {
@@ -351,72 +280,372 @@
             hoverActiveCount++;
             if (!player.paused && !player.ended) player.pause();
         });
+
         dictTooltip.addEventListener('mouseleave', () => {
+            handleMouseLeave();
+        });
+
+        function handleMouseLeave() {
             hoverActiveCount = Math.max(0, hoverActiveCount - 1);
             if (hoverActiveCount === 0) {
                 if (resumeAfterHover) player.play().catch(()=>{});
                 resumeAfterHover = false;
-                dictTooltip.style.display = 'none';
+                tooltipHideTimer = setTimeout(() => dictTooltip.style.display = 'none', 300);
+            }
+        }
+
+        // --- Audio & Dict ---
+        function speakWord(text) {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        async function fetchDefinition(word) {
+            const query = word.replace(/[^a-zA-Z]/g, '');
+            if (!query) return 'No definition';
+            if (dictCache.has(query)) return dictCache.get(query);
+            
+            try {
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${query}`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                
+                const entry = data[0];
+                let html = `<div class="dict-header"><span class="dict-word">${entry.word}</span>`;
+                if(entry.phonetic) html += `<span style="color:#888; margin-left:8px; font-size:0.9em;">${entry.phonetic}</span>`;
+                html += `<button class="speaker-btn" onclick="speakWord('${entry.word.replace(/'/g, "\\'")}')">🔊</button>`;
+                html += `</div>`;
+                
+                entry.meanings.slice(0,2).forEach(m => {
+                    const def = m.definitions[0]?.definition;
+                    if(def) html += `<div style="margin-bottom:6px;"><span class="dict-pos">${m.partOfSpeech}</span>${def}</div>`;
+                });
+                
+                dictCache.set(query, html);
+                return html;
+            } catch(e) {
+                const err = `<div class="dict-header"><span class="dict-word">${query}</span></div><div style="color:#888">辞書データなし</div>`;
+                dictCache.set(query, err);
+                return err;
+            }
+        }
+
+        // --- Layout & Resizing (Fixed) ---
+        let isResizing = false;
+
+        function checkLayout() {
+            const isColumn = window.innerWidth <= 768 || mainWrapper.style.flexDirection === 'column';
+            if (isColumn) {
+                mainWrapper.style.flexDirection = 'column';
+                resizer.className = 'horizontal';
+            } else {
+                mainWrapper.style.flexDirection = 'row';
+                resizer.className = 'vertical';
+            }
+        }
+
+        resizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isResizing = true;
+            resizer.classList.add('active');
+            
+            const isColumnMode = mainWrapper.style.flexDirection === 'column' || window.innerWidth <= 768;
+            const isVerticalMode = !isColumnMode; 
+
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = isVerticalMode ? 'col-resize' : 'row-resize';
+            
+            videoContainer.style.pointerEvents = 'none';
+
+            const doDrag = (ev) => {
+                if (!isResizing) return;
+                
+                if (isVerticalMode) {
+                    const newWidth = ev.clientX;
+                    videoContainer.style.flex = `0 0 ${newWidth}px`;
+                    videoContainer.style.width = `${newWidth}px`;
+                    videoContainer.style.height = 'auto';
+                } else {
+                    const newHeight = ev.clientY;
+                    videoContainer.style.flex = `0 0 ${newHeight}px`;
+                    videoContainer.style.height = `${newHeight}px`;
+                    videoContainer.style.width = '100%';
+                }
+            };
+
+            const stopDrag = () => {
+                isResizing = false;
+                resizer.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                videoContainer.style.pointerEvents = '';
+                
+                window.removeEventListener('mousemove', doDrag);
+                window.removeEventListener('mouseup', stopDrag);
+            };
+
+            window.addEventListener('mousemove', doDrag);
+            window.addEventListener('mouseup', stopDrag);
+        });
+
+        // --- Search Functionality ---
+        const searchBox = document.getElementById('search-box');
+        const searchCount = document.getElementById('search-count');
+
+        searchBox.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            allWords.forEach(w => w.el.classList.remove('search-highlight', 'search-focus'));
+            searchMatches = [];
+            currentMatchIndex = -1;
+
+            if (!query) {
+                searchCount.innerText = "0/0";
+                return;
+            }
+
+            allWords.forEach(w => {
+                if (w.el.innerText.toLowerCase().includes(query)) {
+                    w.el.classList.add('search-highlight');
+                    searchMatches.push(w);
+                }
+            });
+
+            if (searchMatches.length > 0) {
+                currentMatchIndex = 0;
+                highlightMatch(0);
+            }
+            updateSearchUI();
+        });
+
+        function navSearch(direction) {
+            if (searchMatches.length === 0) return;
+            currentMatchIndex += direction;
+            if (currentMatchIndex >= searchMatches.length) currentMatchIndex = 0;
+            if (currentMatchIndex < 0) currentMatchIndex = searchMatches.length - 1;
+            highlightMatch(currentMatchIndex);
+            updateSearchUI();
+        }
+
+        function highlightMatch(index) {
+            searchMatches.forEach(w => w.el.classList.remove('search-focus'));
+            const target = searchMatches[index];
+            target.el.classList.add('search-focus');
+            target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function updateSearchUI() {
+            if (searchMatches.length === 0) {
+                searchCount.innerText = "0/0";
+            } else {
+                searchCount.innerText = `${currentMatchIndex + 1}/${searchMatches.length}`;
+            }
+        }
+        
+        searchBox.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') navSearch(1);
+        });
+
+        // --- Settings & Font Size ---
+        let currentFontSize = 16;
+        
+        // 修正点1: 引数 ev を受け取る
+        function toggleSettings(ev) {
+            // 修正点2: イベント伝播を止める（親要素のクリックイベントを発火させない）
+            if(ev) ev.stopPropagation();
+            
+            const display = settingsPanel.style.display;
+            settingsPanel.style.display = display === 'block' ? 'none' : 'block';
+        }
+
+        function changeFontSize(delta) {
+            currentFontSize += delta;
+            if (currentFontSize < 10) currentFontSize = 10;
+            if (currentFontSize > 32) currentFontSize = 32;
+            const sizeStr = `${currentFontSize}px`;
+            
+            document.documentElement.style.setProperty('--base-font-size', sizeStr);
+            if (pipWindowRef) {
+                pipWindowRef.document.documentElement.style.setProperty('--base-font-size', sizeStr);
+            }
+        }
+        
+        document.addEventListener('click', (e) => {
+            // 修正点3: シンプルな判定に変更
+            // パネル外をクリックしたら閉じる（ボタンクリック時はここに来ないため）
+            if (!settingsPanel.contains(e.target)) {
+                settingsPanel.style.display = 'none';
             }
         });
 
-        const resizer = document.getElementById('resizer');
-        const leftPanel = document.getElementById('video-container');
-        resizer.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            document.body.classList.add('resizing');
-            resizer.classList.add('active');
-            const startX = e.clientX;
-            const startWidth = leftPanel.getBoundingClientRect().width;
-            const doDrag = (e) => { leftPanel.style.flex = `0 0 ${startWidth + (e.clientX - startX)}px`; };
-            const stopDrag = () => {
-                document.body.classList.remove('resizing');
-                resizer.classList.remove('active');
-                document.removeEventListener('mousemove', doDrag);
-                document.removeEventListener('mouseup', stopDrag);
-            };
-            document.addEventListener('mousemove', doDrag);
-            document.addEventListener('mouseup', stopDrag);
+        // --- Shortcuts ---
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement === searchBox) return;
+            const t = player.currentTime;
+            switch(e.key.toLowerCase()) {
+                case 'arrowleft': safeSeek(t - 5); break;
+                case 'arrowright': safeSeek(t + 5); break;
+                case 's': jumpToSegment('current'); break;
+                case 'a': jumpToSegment('prev'); break;
+                case 'd': jumpToSegment('next'); break;
+            }
         });
 
-        function cacheWords() {
-            allWords = Array.from(document.querySelectorAll('.word')).map(el => ({
-                el: el, start: parseFloat(el.dataset.start), end: parseFloat(el.dataset.end)
-            }));
+        function jumpToSegment(mode) {
+            const t = player.currentTime;
+            let idx = MEDIA_DATA.segments.findIndex(s => t >= s.start && t < s.end);
+            
+            if (idx === -1) {
+                idx = MEDIA_DATA.segments.findIndex(s => s.start > t);
+                if (idx === -1) idx = MEDIA_DATA.segments.length - 1; 
+                else if (mode === 'current' || mode === 'prev') idx = Math.max(0, idx - 1);
+            }
+
+            let targetIdx = idx;
+            if (mode === 'prev') targetIdx = Math.max(0, idx - 1);
+            if (mode === 'next') targetIdx = Math.min(MEDIA_DATA.segments.length - 1, idx + 1);
+
+            if (MEDIA_DATA.segments[targetIdx]) {
+                safeSeek(MEDIA_DATA.segments[targetIdx].start);
+            }
+        }
+
+        function safeSeek(time) {
+            if (!Number.isFinite(time)) return;
+            time = Math.max(0, Math.min(time, player.duration || 99999));
+            if (player.fastSeek) player.fastSeek(time);
+            else player.currentTime = time;
         }
 
         function updateHighlight() {
-            const currentTime = player.currentTime;
-            for (const w of allWords) {
-                if (currentTime >= w.start && currentTime < w.end) {
-                    if (!w.el.classList.contains('active')) {
-                        w.el.classList.add('active');
-                        w.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (!player.paused) {
+                const t = player.currentTime;
+                for (const w of allWords) {
+                    if (t >= w.start && t < w.end) {
+                        if (!w.el.classList.contains('active')) {
+                            w.el.classList.add('active');
+                            if (!isResizing && dictTooltip.style.display !== 'block') {
+                                w.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }
+                    } else {
+                        w.el.classList.remove('active');
                     }
-                } else {
-                    if (w.el.classList.contains('active')) w.el.classList.remove('active');
                 }
             }
             requestAnimationFrame(updateHighlight);
         }
 
-        searchBox.addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase();
-            allWords.forEach(w => {
-                if (val && w.el.innerText.toLowerCase().includes(val)) {
-                    w.el.classList.add('search-highlight');
-                } else {
-                    w.el.classList.remove('search-highlight');
-                }
+        function attemptAutoplay() {
+            player.play().catch(() => {
+                player.muted = true;
+                player.play().catch(()=>{});
             });
-        });
+        }
+        
+        function showError(msg) {
+            const e = document.getElementById('error-message');
+            e.innerText = msg;
+            e.style.display = 'block';
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            init();
-            attemptAutoplay();
-            cacheWords();
-            requestAnimationFrame(updateHighlight);
-        });
+        // --- PiP (Doc PiP) ---
+        async function togglePiP() {
+            if (!window.documentPictureInPicture) {
+                alert("この機能はDocument PiP APIに対応したブラウザのみ利用可能です。");
+                return;
+            }
+            if (window.documentPictureInPicture.window) {
+                window.documentPictureInPicture.window.close();
+                return;
+            }
+
+            try {
+                const pipWin = await window.documentPictureInPicture.requestWindow({
+                    width: 400, height: 600
+                });
+                
+                pipWindowRef = pipWin; 
+
+                pipWin.speakWord = speakWord;
+
+                [...document.styleSheets].forEach(sheet => {
+                    try {
+                        const style = document.createElement('style');
+                        style.textContent = [...sheet.cssRules].map(r => r.cssText).join('');
+                        pipWin.document.head.appendChild(style);
+                    } catch(e) {}
+                });
+
+                pipWin.document.documentElement.style.setProperty('--base-font-size', `${currentFontSize}px`);
+
+                pipWin.document.body.appendChild(mainWrapper);
+                
+                mainWrapper.style.flexDirection = 'column';
+                resizer.className = 'horizontal';
+                videoContainer.style.flex = '0 0 50%';
+                videoContainer.style.width = '100%';
+                
+                // Patch Resizer for PiP
+                const pipResizer = mainWrapper.querySelector('#resizer');
+                pipResizer.onmousedown = (e) => {
+                    e.preventDefault();
+                    isResizing = true;
+                    pipResizer.classList.add('active');
+                    videoContainer.style.pointerEvents = 'none';
+                    
+                    const doDrag = (ev) => {
+                        const h = ev.clientY;
+                        videoContainer.style.flex = `0 0 ${h}px`;
+                        videoContainer.style.height = `${h}px`;
+                    };
+                    const stopDrag = () => {
+                        isResizing = false;
+                        pipResizer.classList.remove('active');
+                        videoContainer.style.pointerEvents = '';
+                        pipWin.document.removeEventListener('mousemove', doDrag);
+                        pipWin.document.removeEventListener('mouseup', stopDrag);
+                    };
+                    pipWin.document.addEventListener('mousemove', doDrag);
+                    pipWin.document.addEventListener('mouseup', stopDrag);
+                };
+                
+                pipWin.document.body.appendChild(dictTooltip);
+
+                pipWin.addEventListener('pagehide', () => {
+                    pipWindowRef = null;
+                    document.body.appendChild(mainWrapper);
+                    document.body.appendChild(dictTooltip);
+                    mainWrapper.style.flexDirection = ''; 
+                    checkLayout(); 
+                });
+
+            } catch(e) {
+                console.error(e);
+            }
+        }
+        
+        function positionTooltip(ev) {
+            const targetDoc = ev.target.ownerDocument;
+            const win = targetDoc.defaultView;
+            
+            const margin = 10;
+            let x = ev.clientX + margin;
+            let y = ev.clientY + margin;
+            
+            dictTooltip.style.display = 'block';
+            const rect = dictTooltip.getBoundingClientRect();
+            
+            if (x + rect.width > win.innerWidth) x = ev.clientX - rect.width - margin;
+            if (y + rect.height > win.innerHeight) y = ev.clientY - rect.height - margin;
+            
+            dictTooltip.style.left = x + 'px';
+            dictTooltip.style.top = y + 'px';
+        }
     </script>
 </body>
 </html>

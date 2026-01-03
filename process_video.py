@@ -3,7 +3,7 @@
 # 2. stable-ts (Whisper) で単語レベルのタイムスタンプ付き文字起こしを実行 (GPU使用)
 # 3. argostranslate でセグメントごとに翻訳
 # 4. outputフォルダを作成（フォルダ名は元のファイル名を維持）
-# 5. 動画ファイルを「Web安全なファイル名（半角英数）」にリネームして出力フォルダへ移動し、data.js と index.html を生成する
+# 5. 動画ファイルを「video.[拡張子]」にリネームして出力フォルダへ移動し、data.js と index.html を生成する
 #
 # 使い方: python process_video.py "動画ファイルのパス"
 
@@ -29,37 +29,29 @@ def setup_argostranslate():
         ), None
     )
     if package_to_install:
-        # 既にインストール済みかチェックするロジックはライブラリ側にあるが、念のためdownload実行
         argostranslate.package.install_from_path(package_to_install.download())
         print("翻訳モデルをロードしました。")
     else:
         print("翻訳モデルが見つかりませんでした。")
 
-def get_safe_filename(filename):
-    """
-    ファイル名からブラウザで問題になりやすい文字（日本語、スペース、特殊記号）を除去する。
-    半角英数字、ドット(.)、ハイフン(-)、アンダースコア(_) 以外はすべてアンダースコアに置換。
-    """
-    safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
-    return safe_name
-
 def process_video(video_path):
     # パス設定
     filename = os.path.basename(video_path)
     name_without_ext = os.path.splitext(filename)[0]
+    ext = os.path.splitext(filename)[1].lower() # 拡張子取得 (.mp4など)
     
-    # フォルダ名は元のファイル名（日本語可）を使用
+    # フォルダ名は元のファイル名を使用
     output_dir = os.path.join("output", name_without_ext)
     
-    # 動画ファイル名はWeb安全な名前に変換
-    safe_filename = get_safe_filename(filename)
+    # 保存する動画ファイル名は固定 (video.mp4 等)
+    safe_video_filename = f"video{ext}"
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     print(f"処理開始: {filename}")
     print(f"出力フォルダ: {output_dir}")
-    print(f"保存ファイル名: {safe_filename}")
+    print(f"保存ファイル名: {safe_video_filename}")
 
     # 1. GPUチェックとWhisperモデルロード
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -69,7 +61,6 @@ def process_video(video_path):
     model = stable_whisper.load_model("large-v3", device=device)
 
     # 2. 文字起こし実行 (stable-ts)
-    # 注意: 移動前のファイルパスを使用します
     print("文字起こしを実行中...")
     result = model.transcribe(video_path, language="en", regroup=True)
 
@@ -102,8 +93,7 @@ def process_video(video_path):
         })
 
     # 4. ファイルの生成と移動
-    # 動画を移動（ここでリネーム後の名前を使用）
-    dest_video_path = os.path.join(output_dir, safe_filename)
+    dest_video_path = os.path.join(output_dir, safe_video_filename)
     
     print(f"動画ファイルを移動中: {video_path} -> {dest_video_path}")
     try:
@@ -113,8 +103,15 @@ def process_video(video_path):
         print("処理を中断せず、データの保存を続行します（動画ファイルは手動で移動してください）。")
 
     # データファイルをJS形式で保存
-    # JS内の videoFile 指定も safe_filename にする
-    js_content = f"const MEDIA_DATA = {{\n  videoFile: '{safe_filename}',\n  segments: {json.dumps(final_data, ensure_ascii=False, indent=2)}\n}};"
+    # originalFileNameを追加、videoFileは固定名を使用
+    # JSONダンプ時にエスケープ処理を行う
+    js_data_obj = {
+        "videoFile": safe_video_filename,
+        "originalFileName": filename,
+        "segments": final_data
+    }
+    
+    js_content = f"const MEDIA_DATA = {json.dumps(js_data_obj, ensure_ascii=False, indent=2)};"
     
     with open(os.path.join(output_dir, "data.js"), "w", encoding="utf-8") as f:
         f.write(js_content)
