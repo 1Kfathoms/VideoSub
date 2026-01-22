@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Language Player</title>
+    <title>AI Language Player (Enhanced)</title>
     <style>
         :root {
             --base-font-size: 16px;
@@ -13,17 +13,79 @@
             --search-highlight: #FFB90C;
             --panel-bg: #222;
             --border-color: #444;
-            --btn-hover-bg: #444;
+            --active-seg-bg: #2d2d2d;
         }
         body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: var(--bg-color); color: var(--text-color); overflow: hidden; }
         
         /* Flex Layout Logic */
-        #main-wrapper { display: flex; width: 100%; height: 100%; flex-direction: row; }
+        #main-wrapper { display: flex; width: 100%; height: 100%; flex-direction: row; transition: all 0.3s ease; }
         
         /* Video Section */
-        #video-container { flex: 0 0 70%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; position: relative; min-width: 200px; min-height: 200px; }
-        video { max-width: 100%; max-height: 100%; }
+        #video-container { 
+            flex: 0 0 70%; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            background: #000; 
+            position: relative; 
+            min-width: 0; 
+            min-height: 200px; 
+            transition: flex 0.3s ease;
+        }
+        video { max-width: 100%; max-height: 100%; width: 100%; height: auto; }
         
+        /* Overlay Buttons */
+        .overlay-ctrl-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .overlay-ctrl-btn:hover { opacity: 1; background: rgba(0, 0, 0, 0.8); }
+
+        /* Video Subtitles Overlay */
+        #video-subs-overlay {
+            position: absolute;
+            bottom: 10%; 
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 15;
+            cursor: move; 
+            user-select: none;
+            width: 80%;
+            pointer-events: auto;
+            text-shadow: 2px 2px 2px rgba(0,0,0,1), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            padding: 10px;
+        }
+        .v-sub-line { display: block; line-height: 1.4; }
+        .v-sub-en { font-size: 1.5rem; color: #fff; font-weight: bold; margin-bottom: 4px; }
+        .v-sub-jp { font-size: 1.1rem; color: #ddd; pointer-events: none; }
+
+        /* Overlay Word Style */
+        .ov-word { 
+            transition: color 0.1s, text-shadow 0.1s; 
+            display: inline-block; 
+            cursor: pointer; 
+            pointer-events: auto;
+            border-radius: 3px;
+        }
+        .ov-word:hover { background: rgba(255, 255, 255, 0.2); }
+        .ov-word.active { 
+            color: var(--highlight-color); 
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6), 2px 2px 2px rgba(0,0,0,1);
+        }
+
         /* Resizer */
         #resizer { background: #333; z-index: 10; transition: background 0.2s; flex: 0 0 8px; position: relative; }
         #resizer:hover, #resizer.active { background: var(--highlight-color); }
@@ -31,7 +93,7 @@
         #resizer.vertical { cursor: col-resize; width: 8px; height: 100%; flex: 0 0 8px; }
 
         /* Transcript Section */
-        #transcript-container { flex: 1; display: flex; flex-direction: column; min-width: 200px; min-height: 200px; background: var(--bg-color); font-size: var(--base-font-size); position: relative; }
+        #transcript-container { flex: 1; display: flex; flex-direction: column; min-width: 200px; min-height: 200px; background: var(--bg-color); font-size: var(--base-font-size); position: relative; transition: width 0.3s ease; }
         
         /* Header Bar */
         #controls-header { 
@@ -61,37 +123,68 @@
         .icon-btn:hover { background: #444; }
         
         /* Settings Panel */
-        #settings-panel { display: none; position: absolute; top: 45px; right: 10px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; z-index: 1001; box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 150px; }
-        .setting-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; }
-        .font-ctrl-group { display: flex; gap: 5px; }
+        #settings-panel { 
+            display: none; 
+            position: absolute; 
+            top: 45px; 
+            right: 10px; 
+            background: var(--panel-bg); 
+            border: 1px solid var(--border-color); 
+            border-radius: 6px; 
+            padding: 15px; 
+            z-index: 1001; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+            min-width: 200px; 
+        }
+        .setting-item { margin-bottom: 12px; font-size: 0.9em; }
+        .setting-label { color: #ccc; }
+        .font-ctrl-group { display: flex; gap: 5px; margin-top: 4px; }
+        
+        /* Label styling for easier clicking */
+        .setting-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            cursor: pointer;
+            padding: 2px 0;
+        }
+        .setting-label-row:hover span { color: #fff; }
+        .setting-checkbox { cursor: pointer; }
         
         /* Transcript Content & Segments */
         #content { flex: 1; overflow-y: auto; padding: 10px; }
         
-        /* Segment Layout (Flex for side buttons) */
+        /* Segment Layout */
         .segment { 
             display: flex; 
             align-items: flex-start;
             gap: 10px;
             margin-bottom: 0.5em; 
-            padding: 0.25em; 
+            padding: 0.5em; 
             border-radius: 4px; 
-            transition: background 0.2s; 
+            border-left: 3px solid transparent; 
+            transition: background 0.2s, border-left-color 0.2s; 
         }
         .segment:hover { background: #2a2a2a; }
+        
+        .segment.active-segment {
+            background-color: var(--active-seg-bg);
+            border-left-color: var(--highlight-color);
+        }
 
-        .segment-text-area { flex: 1; } /* Holds words and translation */
+        .segment-text-area { flex: 1; }
         
         .segment-actions {
             display: flex;
             flex-direction: column;
             gap: 4px;
-            opacity: 0; /* Hidden by default */
+            opacity: 0; 
             transition: opacity 0.2s;
             padding-top: 2px;
         }
-        /* Show actions on hover (Desktop) or if active logic needed */
         .segment:hover .segment-actions { opacity: 1; }
+        .segment.active-segment .segment-actions { opacity: 1; }
 
         .action-btn {
             background: transparent;
@@ -118,21 +211,19 @@
         .dict-header { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 6px; }
         .dict-word { font-weight: bold; font-size: 1.1em; }
         .dict-pos { background: #333; color: var(--highlight-color); padding: 1px 4px; border-radius: 3px; font-size: 0.75em; margin-right: 6px; border: 1px solid #444; }
-        
-        /* Tooltip buttons */
         .tooltip-btn { background: none; border: none; cursor: pointer; color: #aaa; font-size: 1.1em; padding: 0 4px; margin-left: 4px; transition: color 0.2s; }
         .tooltip-btn:hover { color: #fff; }
         .tooltip-btn.copy-time { font-size: 0.9em; border: 1px solid #444; border-radius: 3px; padding: 1px 4px; margin-left: auto;}
         .tooltip-btn.copy-time:hover { background: #333; color: var(--highlight-color); }
 
-        /* Error Message */
         #error-message { display: none; color: #ff5555; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 8px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; pointer-events: none; }
 
         @media (max-width: 768px) {
             #main-wrapper { flex-direction: column; }
             #video-container { flex: 0 0 40%; width: 100%; border-bottom: none; }
             #resizer.vertical { display: none; }
-            .segment-actions { opacity: 1; /* Always show buttons on mobile */ flex-direction: row; } 
+            .segment-actions { opacity: 1; flex-direction: row; } 
+            .overlay-ctrl-btn { top: 5px; left: 5px; padding: 3px 6px; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -140,7 +231,15 @@
 
     <div id="main-wrapper">
         <div id="video-container">
+            <button id="sidebar-toggle-btn" class="overlay-ctrl-btn" onclick="toggleSidebar()">◫ サイドバー</button>
+            
             <div id="error-message"></div>
+            
+            <div id="video-subs-overlay">
+                <div id="overlay-text-en" class="v-sub-line v-sub-en"></div>
+                <div id="overlay-text-jp" class="v-sub-line v-sub-jp"></div>
+            </div>
+
             <video id="player" controls playsinline webkit-playsinline preload="auto"></video>
         </div>
 
@@ -160,13 +259,33 @@
                 <button id="settings-btn" class="icon-btn" onclick="toggleSettings(event)" title="設定">⚙️</button>
             </div>
 
-            <div id="settings-panel">
+            <div id="settings-panel" onclick="event.stopPropagation()">
                 <div class="setting-item">
                     <span class="setting-label">文字サイズ</span>
                     <div class="font-ctrl-group">
                         <button class="icon-btn" onclick="changeFontSize(-1)">A-</button>
                         <button class="icon-btn" onclick="changeFontSize(1)">A+</button>
                     </div>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #444; margin: 8px 0;">
+                
+                <div class="setting-item">
+                    <label for="chk-overlay-main" class="setting-label-row">
+                        <span class="setting-label">画面内字幕 (全体)</span>
+                        <input type="checkbox" class="setting-checkbox" id="chk-overlay-main" checked onchange="updateOverlaySettings()">
+                    </label>
+                </div>
+                <div class="setting-item" style="padding-left: 10px;">
+                    <label for="chk-overlay-en" class="setting-label-row">
+                        <span class="setting-label">英語を表示</span>
+                        <input type="checkbox" class="setting-checkbox" id="chk-overlay-en" checked onchange="updateOverlaySettings()">
+                    </label>
+                </div>
+                <div class="setting-item" style="padding-left: 10px;">
+                    <label for="chk-overlay-jp" class="setting-label-row">
+                        <span class="setting-label">日本語を表示</span>
+                        <input type="checkbox" class="setting-checkbox" id="chk-overlay-jp" checked onchange="updateOverlaySettings()">
+                    </label>
                 </div>
             </div>
 
@@ -185,12 +304,20 @@
         const mainWrapper = document.getElementById('main-wrapper');
         const resizer = document.getElementById('resizer');
         const videoContainer = document.getElementById('video-container');
+        const transcriptContainer = document.getElementById('transcript-container');
         const settingsPanel = document.getElementById('settings-panel');
         
+        // Overlay Elements
+        const overlayContainer = document.getElementById('video-subs-overlay');
+        const overlayEn = document.getElementById('overlay-text-en');
+        const overlayJp = document.getElementById('overlay-text-jp');
+
         let pipWindowRef = null;
+        let isSidebarVisible = true;
 
         // Search State
         let allWords = [];
+        let allSegmentDivs = [];
         let searchMatches = [];
         let currentMatchIndex = -1;
 
@@ -200,7 +327,7 @@
         let hoverDebounceTimer = null;
         let tooltipHideTimer = null;
         let dictCache = new Map();
-        let currentHoverWordStart = 0; // Stores start time for tooltip button
+        let currentHoverWordStart = 0;
 
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -212,10 +339,17 @@
             
             renderSegments();
             
+            // Cache word elements for search
             allWords = Array.from(document.querySelectorAll('.word')).map(el => ({
                 el: el, 
                 start: parseFloat(el.dataset.start), 
                 end: parseFloat(el.dataset.end)
+            }));
+            
+            // Cache segment elements
+            allSegmentDivs = Array.from(document.querySelectorAll('.segment')).map(el => ({
+                el: el,
+                start: parseFloat(el.dataset.start)
             }));
 
             checkLayout();
@@ -225,20 +359,24 @@
             
             // Global Shortcuts
             document.addEventListener('keydown', handleGlobalKeydown);
+
+            // Initialize Draggable Overlay
+            makeDraggable(overlayContainer);
+
+            // Initialize Settings
+            updateOverlaySettings();
         });
 
         function renderSegments() {
             MEDIA_DATA.segments.forEach((segment) => {
-                // Main Container
                 const segDiv = document.createElement('div');
                 segDiv.className = 'segment';
                 segDiv.dataset.start = segment.start;
                 
-                // Left: Text Content
                 const contentArea = document.createElement('div');
                 contentArea.className = 'segment-text-area';
 
-                let segmentText = ""; // Accumulate text for copy
+                let segmentText = ""; 
 
                 segment.words.forEach((w, index) => {
                     const span = document.createElement('span');
@@ -247,10 +385,7 @@
                     span.dataset.start = w.start;
                     span.dataset.end = w.end;
                     
-                    // Add space before word (except for first word)
-                    if (index > 0) {
-                        segmentText += " ";
-                    }
+                    if (index > 0) segmentText += " ";
                     segmentText += w.word;
 
                     span.onclick = (e) => {
@@ -267,66 +402,203 @@
                 trans.innerText = segment.translation;
                 contentArea.appendChild(trans);
                 
-                // Right: Actions (Buttons)
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'segment-actions';
                 
-                // Copy Text Button
                 const btnCopyText = document.createElement('button');
                 btnCopyText.className = 'action-btn';
                 btnCopyText.innerText = '📋';
                 btnCopyText.title = '英文をコピー';
-                btnCopyText.onclick = (e) => {
-                    e.stopPropagation();
-                    copyToClipboard(segmentText);
-                };
+                btnCopyText.onclick = (e) => { e.stopPropagation(); copyToClipboard(segmentText); };
 
-                // Copy Time Button
                 const btnCopyTime = document.createElement('button');
                 btnCopyTime.className = 'action-btn';
                 btnCopyTime.innerText = '⏱️';
                 btnCopyTime.title = '開始時間をコピー (秒)';
-                btnCopyTime.onclick = (e) => {
-                    e.stopPropagation();
-                    copyToClipboard(Math.floor(segment.start).toString());
-                };
+                btnCopyTime.onclick = (e) => { e.stopPropagation(); copyToClipboard(Math.floor(segment.start).toString()); };
 
                 actionsDiv.appendChild(btnCopyText);
                 actionsDiv.appendChild(btnCopyTime);
 
-                // Combine
                 segDiv.appendChild(contentArea);
                 segDiv.appendChild(actionsDiv);
                 contentDiv.appendChild(segDiv);
             });
         }
 
+        // --- Core Logic: Highlight & Overlay ---
+        let lastActiveSegmentIndex = -1;
+
+        function updateHighlight() {
+            if (!player.paused) {
+                const t = player.currentTime;
+                
+                for (const w of allWords) {
+                    if (t >= w.start && t < w.end) {
+                        if (!w.el.classList.contains('active')) w.el.classList.add('active');
+                    } else {
+                        w.el.classList.remove('active');
+                    }
+                }
+
+                const currentSegIdx = MEDIA_DATA.segments.findIndex(s => t >= s.start && t < s.end);
+
+                if (currentSegIdx !== -1) {
+                    if (currentSegIdx !== lastActiveSegmentIndex) {
+                        const segData = MEDIA_DATA.segments[currentSegIdx];
+                        
+                        overlayEn.innerHTML = "";
+                        if (segData.words && segData.words.length > 0) {
+                            segData.words.forEach((w, idx) => {
+                                const span = document.createElement('span');
+                                span.className = 'ov-word';
+                                span.innerText = w.word;
+                                span.dataset.start = w.start;
+                                span.dataset.end = w.end;
+                                
+                                setupHoverEvents(span, w.word, w.start);
+                                span.onclick = (e) => { e.stopPropagation(); safeSeek(w.start); };
+                                span.onmousedown = (e) => e.stopPropagation();
+
+                                if (idx > 0) overlayEn.appendChild(document.createTextNode(" "));
+                                overlayEn.appendChild(span);
+                            });
+                        } else {
+                            overlayEn.innerText = segData.text || "";
+                        }
+                        
+                        overlayJp.innerText = segData.translation || "";
+                        
+                        if (lastActiveSegmentIndex !== -1 && allSegmentDivs[lastActiveSegmentIndex]) {
+                            allSegmentDivs[lastActiveSegmentIndex].el.classList.remove('active-segment');
+                        }
+                        if (allSegmentDivs[currentSegIdx]) {
+                            const activeEl = allSegmentDivs[currentSegIdx].el;
+                            activeEl.classList.add('active-segment');
+                            
+                            if (isSidebarVisible && !isResizing && dictTooltip.style.display !== 'block') {
+                                activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }
+
+                        lastActiveSegmentIndex = currentSegIdx;
+                    }
+
+                    if (overlayEn.children.length > 0) {
+                        Array.from(overlayEn.children).forEach(span => {
+                            if (span.classList.contains('ov-word')) {
+                                const wStart = parseFloat(span.dataset.start);
+                                const wEnd = parseFloat(span.dataset.end);
+                                if (t >= wStart && t < wEnd) {
+                                    span.classList.add('active');
+                                } else {
+                                    span.classList.remove('active');
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+            requestAnimationFrame(updateHighlight);
+        }
+
+        // --- Sidebar Toggle ---
+        function toggleSidebar() {
+            isSidebarVisible = !isSidebarVisible;
+            const btn = document.getElementById('sidebar-toggle-btn');
+            
+            if (!isSidebarVisible) {
+                transcriptContainer.style.display = 'none';
+                resizer.style.display = 'none';
+                videoContainer.style.flex = '0 0 100%';
+                btn.innerText = '◫ 表示';
+            } else {
+                transcriptContainer.style.display = 'flex';
+                resizer.style.display = 'block';
+                videoContainer.style.flex = '0 0 70%'; 
+                checkLayout(); 
+                btn.innerText = '◫ サイドバー';
+            }
+        }
+
+        // --- Overlay Draggable ---
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            element.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                element.style.bottom = 'auto';
+                element.style.transform = 'none';
+                
+                const rect = element.getBoundingClientRect();
+                const parentRect = videoContainer.getBoundingClientRect();
+                
+                let newTop = (element.offsetTop - pos2);
+                let newLeft = (element.offsetLeft - pos1);
+                
+                if (newTop < 0) newTop = 0;
+                if (newLeft < 0) newLeft = 0;
+                if (newTop + element.offsetHeight > parentRect.height) newTop = parentRect.height - element.offsetHeight;
+                if (newLeft + element.offsetWidth > parentRect.width) newLeft = parentRect.width - element.offsetWidth;
+
+                element.style.top = newTop + "px";
+                element.style.left = newLeft + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        // --- Overlay Settings ---
+        function updateOverlaySettings() {
+            const showMain = document.getElementById('chk-overlay-main').checked;
+            const showEn = document.getElementById('chk-overlay-en').checked;
+            const showJp = document.getElementById('chk-overlay-jp').checked;
+
+            overlayContainer.style.display = showMain ? 'block' : 'none';
+            overlayEn.style.display = showEn ? 'block' : 'none';
+            overlayJp.style.display = showJp ? 'block' : 'none';
+        }
+
         // --- Utils ---
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
-                // Simple visual feedback (optional)
                 console.log('Copied:', text);
             } catch (err) {
                 console.error('Copy failed', err);
-                alert('コピーに失敗しました (HTTPSまたはlocalhostが必要です)');
+                alert('コピーに失敗しました');
             }
         }
 
-        // --- Tooltip & Hover Logic ---
+        // --- Tooltip Logic ---
         function setupHoverEvents(element, wordText, startTime) {
             element.addEventListener('mouseenter', (ev) => {
                 if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
-                
-                // Store time for tooltip button
                 currentHoverWordStart = startTime;
-
                 if (hoverActiveCount === 0) resumeAfterHover = !player.paused && !player.ended;
                 hoverActiveCount++;
                 if (!player.paused) player.pause();
 
                 dictTooltip.style.display = 'block';
-                // Show temporary loader with Time Copy button immediately available
                 dictTooltip.innerHTML = generateTooltipHeader('Loading...', false); 
                 positionTooltip(ev);
 
@@ -366,7 +638,6 @@
             }
         }
 
-        // --- Audio & Dict ---
         function speakWord(text) {
             if (window.speechSynthesis) {
                 window.speechSynthesis.cancel();
@@ -376,20 +647,14 @@
             }
         }
 
-        // Helper to generate consistent header with Time Copy Button
         function generateTooltipHeader(word, showSpeaker = true) {
             const timeInt = Math.floor(currentHoverWordStart);
             let html = `<div class="dict-header">`;
             html += `<span class="dict-word">${word}</span>`;
-            
-            // Time Copy Button (Always right aligned)
             html += `<button class="tooltip-btn copy-time" onclick="copyToClipboard('${timeInt}')" title="時間をコピー: ${timeInt}">⏱️ ${timeInt}s</button>`;
-            
-            // Speaker Button (Optional)
             if (showSpeaker) {
                 html += `<button class="tooltip-btn" onclick="speakWord('${word.replace(/'/g, "\\'")}')" title="発音">🔊</button>`;
             }
-            
             html += `</div>`;
             return html;
         }
@@ -397,24 +662,19 @@
         async function fetchDefinition(word) {
             const query = word.replace(/[^a-zA-Z]/g, '');
             if (!query) return generateTooltipHeader(word, false) + 'No definition';
-            
             if (dictCache.has(query)) return dictCache.get(query);
             
             try {
                 const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${query}`);
                 if (!res.ok) throw new Error();
                 const data = await res.json();
-                
                 const entry = data[0];
                 let html = generateTooltipHeader(entry.word, true);
-                
                 if(entry.phonetic) html += `<div style="color:#888; margin-bottom:4px; font-size:0.9em;">${entry.phonetic}</div>`;
-                
                 entry.meanings.slice(0,2).forEach(m => {
                     const def = m.definitions[0]?.definition;
                     if(def) html += `<div style="margin-bottom:6px;"><span class="dict-pos">${m.partOfSpeech}</span>${def}</div>`;
                 });
-                
                 dictCache.set(query, html);
                 return html;
             } catch(e) {
@@ -428,7 +688,8 @@
         let isResizing = false;
 
         function checkLayout() {
-            const isColumn = window.innerWidth <= 768 || mainWrapper.style.flexDirection === 'column';
+            if (!isSidebarVisible) return;
+            const isColumn = window.innerWidth <= 768; 
             if (isColumn) {
                 mainWrapper.style.flexDirection = 'column';
                 resizer.className = 'horizontal';
@@ -439,6 +700,7 @@
         }
 
         resizer.addEventListener('mousedown', (e) => {
+            if (!isSidebarVisible) return;
             e.preventDefault();
             isResizing = true;
             resizer.classList.add('active');
@@ -448,12 +710,10 @@
 
             document.body.style.userSelect = 'none';
             document.body.style.cursor = isVerticalMode ? 'col-resize' : 'row-resize';
-            
             videoContainer.style.pointerEvents = 'none';
 
             const doDrag = (ev) => {
                 if (!isResizing) return;
-                
                 if (isVerticalMode) {
                     const newWidth = ev.clientX;
                     videoContainer.style.flex = `0 0 ${newWidth}px`;
@@ -473,7 +733,6 @@
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
                 videoContainer.style.pointerEvents = '';
-                
                 window.removeEventListener('mousemove', doDrag);
                 window.removeEventListener('mouseup', stopDrag);
             };
@@ -482,7 +741,7 @@
             window.addEventListener('mouseup', stopDrag);
         });
 
-        // --- Search Functionality ---
+        // --- Search ---
         const searchBox = document.getElementById('search-box');
         const searchCount = document.getElementById('search-count');
 
@@ -561,16 +820,13 @@
         }
         
         document.addEventListener('click', (e) => {
-            if (!settingsPanel.contains(e.target)) {
+            if (!settingsPanel.contains(e.target) && e.target.id !== 'settings-btn') {
                 settingsPanel.style.display = 'none';
             }
         });
 
-        // --- Shortcuts (Global Handler) ---
+        // --- Shortcuts ---
         function handleGlobalKeydown(e) {
-            // Ignore if typing in search box
-            // Note: In PiP, the search box is in a different document, so check activeElement carefully if searching there.
-            // Simplified check:
             const activeTag = (e.target.tagName || "").toLowerCase();
             if (activeTag === 'input' || activeTag === 'textarea') return;
 
@@ -610,25 +866,6 @@
             else player.currentTime = time;
         }
 
-        function updateHighlight() {
-            if (!player.paused) {
-                const t = player.currentTime;
-                for (const w of allWords) {
-                    if (t >= w.start && t < w.end) {
-                        if (!w.el.classList.contains('active')) {
-                            w.el.classList.add('active');
-                            if (!isResizing && dictTooltip.style.display !== 'block') {
-                                w.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                        }
-                    } else {
-                        w.el.classList.remove('active');
-                    }
-                }
-            }
-            requestAnimationFrame(updateHighlight);
-        }
-
         function attemptAutoplay() {
             player.play().catch(() => {
                 player.muted = true;
@@ -642,87 +879,6 @@
             e.style.display = 'block';
         }
 
-        // --- PiP (Doc PiP) ---
-        async function togglePiP() {
-            if (!window.documentPictureInPicture) {
-                alert("この機能はDocument PiP APIに対応したブラウザのみ利用可能です。");
-                return;
-            }
-            if (window.documentPictureInPicture.window) {
-                window.documentPictureInPicture.window.close();
-                return;
-            }
-
-            try {
-                const pipWin = await window.documentPictureInPicture.requestWindow({
-                    width: 400, height: 600
-                });
-                
-                pipWindowRef = pipWin; 
-
-                // Attach shortcuts to PiP window
-                pipWin.document.addEventListener('keydown', handleGlobalKeydown);
-                pipWin.speakWord = speakWord;
-                // Expose copy helper to PiP scope if needed, or function scoping handles it.
-                // Note: navigator.clipboard might require the user gesture to be on the pip window directly.
-                // Clicking the button inside PiP IS a gesture on PiP, so it should work.
-
-                [...document.styleSheets].forEach(sheet => {
-                    try {
-                        const style = document.createElement('style');
-                        style.textContent = [...sheet.cssRules].map(r => r.cssText).join('');
-                        pipWin.document.head.appendChild(style);
-                    } catch(e) {}
-                });
-
-                pipWin.document.documentElement.style.setProperty('--base-font-size', `${currentFontSize}px`);
-
-                pipWin.document.body.appendChild(mainWrapper);
-                
-                mainWrapper.style.flexDirection = 'column';
-                resizer.className = 'horizontal';
-                videoContainer.style.flex = '0 0 50%';
-                videoContainer.style.width = '100%';
-                
-                // Patch Resizer for PiP
-                const pipResizer = mainWrapper.querySelector('#resizer');
-                pipResizer.onmousedown = (e) => {
-                    e.preventDefault();
-                    isResizing = true;
-                    pipResizer.classList.add('active');
-                    videoContainer.style.pointerEvents = 'none';
-                    
-                    const doDrag = (ev) => {
-                        const h = ev.clientY;
-                        videoContainer.style.flex = `0 0 ${h}px`;
-                        videoContainer.style.height = `${h}px`;
-                    };
-                    const stopDrag = () => {
-                        isResizing = false;
-                        pipResizer.classList.remove('active');
-                        videoContainer.style.pointerEvents = '';
-                        pipWin.document.removeEventListener('mousemove', doDrag);
-                        pipWin.document.removeEventListener('mouseup', stopDrag);
-                    };
-                    pipWin.document.addEventListener('mousemove', doDrag);
-                    pipWin.document.addEventListener('mouseup', stopDrag);
-                };
-                
-                pipWin.document.body.appendChild(dictTooltip);
-
-                pipWin.addEventListener('pagehide', () => {
-                    pipWindowRef = null;
-                    document.body.appendChild(mainWrapper);
-                    document.body.appendChild(dictTooltip);
-                    mainWrapper.style.flexDirection = ''; 
-                    checkLayout(); 
-                });
-
-            } catch(e) {
-                console.error(e);
-            }
-        }
-        
         function positionTooltip(ev) {
             const targetDoc = ev.target.ownerDocument;
             const win = targetDoc.defaultView;
@@ -739,6 +895,85 @@
             
             dictTooltip.style.left = x + 'px';
             dictTooltip.style.top = y + 'px';
+        }
+
+        // --- PiP ---
+        async function togglePiP() {
+            if (!window.documentPictureInPicture) {
+                alert("この機能はDocument PiP APIに対応したブラウザのみ利用可能です。");
+                return;
+            }
+            if (window.documentPictureInPicture.window) {
+                window.documentPictureInPicture.window.close();
+                return;
+            }
+
+            try {
+                const pipWin = await window.documentPictureInPicture.requestWindow({
+                    width: 360, height: 550
+                });
+                pipWindowRef = pipWin; 
+
+                pipWin.document.addEventListener('keydown', handleGlobalKeydown);
+                pipWin.speakWord = speakWord;
+
+                [...document.styleSheets].forEach(sheet => {
+                    try {
+                        const style = document.createElement('style');
+                        style.textContent = [...sheet.cssRules].map(r => r.cssText).join('');
+                        pipWin.document.head.appendChild(style);
+                    } catch(e) {}
+                });
+
+                pipWin.document.documentElement.style.setProperty('--base-font-size', `${currentFontSize}px`);
+
+                pipWin.document.body.appendChild(mainWrapper);
+                
+                // PiP Layout Adjustments (FIXED for overflow)
+                mainWrapper.style.flexDirection = 'column';
+                resizer.className = 'horizontal';
+                
+                // 1. Remove min-height constraints to avoid overflow in small PiP
+                videoContainer.style.minHeight = '0px';
+                transcriptContainer.style.minHeight = '0px';
+
+                // 2. Set Flexible ratio
+                videoContainer.style.flex = '0 0 40%'; // Top 40%
+                videoContainer.style.width = '100%';
+                transcriptContainer.style.flex = '1 1 auto'; // Fill the rest
+                transcriptContainer.style.display = 'flex'; 
+                
+                pipWin.document.body.appendChild(dictTooltip);
+
+                pipWin.addEventListener('pagehide', () => {
+                    pipWindowRef = null;
+                    document.body.appendChild(mainWrapper);
+                    document.body.appendChild(dictTooltip);
+                    
+                    // Reset Styles
+                    mainWrapper.style.flexDirection = ''; 
+                    videoContainer.style.width = '';
+                    videoContainer.style.height = '';
+                    // Restore default min-heights (CSS will handle it by removing inline style)
+                    videoContainer.style.minHeight = '';
+                    transcriptContainer.style.minHeight = '';
+
+                    if (!isSidebarVisible) {
+                        videoContainer.style.flex = '0 0 100%';
+                        transcriptContainer.style.display = 'none';
+                        resizer.style.display = 'none';
+                    } else {
+                        videoContainer.style.flex = ''; 
+                        transcriptContainer.style.display = 'flex';
+                        resizer.style.display = 'block';
+                    }
+
+                    checkLayout(); 
+                });
+
+            } catch(e) {
+                console.error(e);
+            }
         }
     </script>
 </body>
