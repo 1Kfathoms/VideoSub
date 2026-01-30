@@ -7,4 +7,3 @@ numpy<2.0
 # アプリケーション依存ライブラリ
 openai-whisper
 stable-ts
-argostranslate
